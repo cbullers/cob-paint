@@ -12,6 +12,14 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+/*
+*
+*
+*	I KNOW THAT IT ISNT ORGANIZED VERY WELL, I WILL GET TO THAT!
+*
+*
+*/
+
 public class COBPaint extends JApplet {
 
 	private static final long serialVersionUID = 1L;
