@@ -25,6 +25,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JApplet;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
@@ -77,6 +78,9 @@ class Application extends JPanel {
 	JSlider greenSlider;
 	JSlider blueSlider;
 	
+	JSlider toolBrushSize;
+	JLabel toolBrushSizeLbl;
+	
 	JButton saveButton;
 	JButton penButton;
 	JButton rollerButton;
@@ -84,11 +88,17 @@ class Application extends JPanel {
 	
 	JPanel canvas;
 	
+	PenTool pen = new PenTool();
+	RollerTool roller = new RollerTool();
+	BucketTool bucket = new BucketTool();
+	
 	static BufferedImage canvasImage;
 	Graphics2D bufferGraphics;
 	
 	PointerInfo p;
 	Point b;
+	
+	int desiredBrushWidth;
 	
 	Toolkit toolkit = Toolkit.getDefaultToolkit();
 	Image penCursorImg = toolkit.getImage("../pencil.png");
@@ -115,6 +125,8 @@ class Application extends JPanel {
 		add(redSlider);
 		add(greenSlider);
 		add(blueSlider);
+		add(toolBrushSize);
+		add(toolBrushSizeLbl);
 		add(penButton);
 		add(rollerButton);
 		add(bucketButton);
@@ -249,7 +261,7 @@ class Application extends JPanel {
 
 			@Override
 			public void actionPerformed(ActionEvent a) {
-				currentTool = new PenTool();
+				currentTool = pen;
 				resetCursor();
 			}
 			
@@ -272,7 +284,7 @@ class Application extends JPanel {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				currentTool = new RollerTool();
+				currentTool = roller;
 				resetCursor();
 			}
 			
@@ -294,7 +306,7 @@ class Application extends JPanel {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				currentTool = new BucketTool();
+				currentTool = bucket;
 				resetCursor();
 			}
 			
@@ -306,6 +318,25 @@ class Application extends JPanel {
 		redSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
 		greenSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
 		blueSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
+		
+		toolBrushSize = new JSlider(JSlider.HORIZONTAL, 0, 200, 10);
+		toolBrushSize.setSize(300,30);
+		toolBrushSize.setLocation(695,10);
+		toolBrushSize.setMajorTickSpacing(10);
+		toolBrushSize.setMinorTickSpacing(1);
+		toolBrushSize.addChangeListener(new ChangeListener() {
+
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				//if(!(currentTool instanceof PenTool) || !(currentTool instanceof BucketTool) || !(currentTool instanceof RollerTool)) {return;}
+				int value = toolBrushSize.getValue();
+				desiredBrushWidth = value;
+			}
+			
+		});
+		toolBrushSizeLbl = new JLabel("Brush Size: ", JLabel.CENTER);
+		toolBrushSizeLbl.setSize(75,25);
+		toolBrushSizeLbl.setLocation(615, 13);
 		
 		redSlider.setSize(SLIDER_DIMENSION);
 		greenSlider.setSize(SLIDER_DIMENSION);
@@ -374,11 +405,26 @@ class Application extends JPanel {
 					b = p.getLocation();
 					if(currentTool instanceof PenTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.fillOval(b.x,b.y, PenTool.brushSize, PenTool.brushSize);
+						bufferGraphics.fillOval(b.x,b.y, desiredBrushWidth, desiredBrushWidth);
 						repaintIt();
 					}else if(currentTool instanceof RollerTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.fillOval(b.x, b.y, RollerTool.brushSize, RollerTool.brushSize);
+						
+						int dotSize = 4;
+						int d = desiredBrushWidth;
+						
+						bufferGraphics.fillOval(b.x-(d), b.y, dotSize, dotSize);
+						bufferGraphics.fillOval(b.x+(d), b.y, dotSize, dotSize);
+						bufferGraphics.fillOval(b.x, b.y, dotSize, dotSize);
+						
+						// To space it out
+						try {
+							Thread.sleep(1);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
 						repaintIt();
 					}
 				}
@@ -464,13 +510,23 @@ class Tool {
 
 class PenTool extends Tool {
 	
-	public static int brushSize = 3;
+	public int brushSize = 5;
+	
+	@Override
+	public void setBrushSize(int s) {
+		this.brushSize = s;
+	}
 	
 }
 
 class RollerTool extends Tool {
 	
-	public static int brushSize = 20;
+	public int brushSize = 10;
+	
+	@Override
+	public void setBrushSize(int s) {
+		this.brushSize = s;
+	}
 	
 }
 
