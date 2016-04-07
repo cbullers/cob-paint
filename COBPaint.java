@@ -85,6 +85,7 @@ class Application extends JPanel {
 	JButton penButton;
 	JButton rollerButton;
 	JButton bucketButton;
+	JButton rectangleButton;
 	
 	JPanel canvas;
 	
@@ -128,6 +129,7 @@ class Application extends JPanel {
 		add(toolBrushSize);
 		add(toolBrushSizeLbl);
 		add(penButton);
+		add(rectangleButton);
 		add(rollerButton);
 		add(bucketButton);
 		add(canvas);
@@ -312,6 +314,19 @@ class Application extends JPanel {
 			
 		});
 		
+		// Rectangle button
+		rectangleButton = new JButton();
+		rectangleButton.setSize(32,32);
+		rectangleButton.setLocation(85+offset+45,7);
+		rectangleButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				currentTool = new RectangleTool();
+			}
+			
+		});
+		
 	}
 	
 	public void initSliders() {
@@ -396,7 +411,8 @@ class Application extends JPanel {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
 	
-	private void canvasLogic() {
+	
+	private void canvasLogic(int initialX, int initialY, Color bgColor) {
 
 		Thread t = new Thread(new Runnable(){
 			public void run() {
@@ -421,9 +437,16 @@ class Application extends JPanel {
 						try {
 							Thread.sleep(1);
 						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
+						
+						repaintIt();
+					}else if(currentTool instanceof RectangleTool) {
+						p = MouseInfo.getPointerInfo();
+						b = p.getLocation();
+						
+						bufferGraphics.setColor(new Color(curR, curG, curB));
+						bufferGraphics.fillRect(initialX, initialY, b.x-initialX, b.y-initialY);
 						
 						repaintIt();
 					}
@@ -463,7 +486,11 @@ class Application extends JPanel {
 			@Override
 			public void mousePressed(MouseEvent arg0) {
 				pressingDown = true;
-				canvasLogic();
+				
+				p = MouseInfo.getPointerInfo();
+				b = p.getLocation();
+				
+				canvasLogic(b.x, b.y, ((Canvas) canvas).getTheBackgroundColor());
 			}
 
 
@@ -486,6 +513,10 @@ class Canvas extends JPanel {
 	
 	public void setTheBackgroundColor(Color c) {
 		backgroundColor = c;
+	}
+	
+	public Color getTheBackgroundColor() {
+		return backgroundColor;
 	}
 	
 	@Override
@@ -531,3 +562,4 @@ class RollerTool extends Tool {
 }
 
 class BucketTool extends Tool { /* I guess this class isnt really needed, but yolo */ }
+class RectangleTool extends Tool {}
