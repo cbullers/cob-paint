@@ -77,6 +77,7 @@ class Application extends JPanel {
 	public Tool currentTool;
 	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>();
+	List<BufferedImage> redoImages = new ArrayList<BufferedImage>();
 	
 	JSlider redSlider;
 	JSlider greenSlider;
@@ -91,6 +92,7 @@ class Application extends JPanel {
 	JButton bucketButton;
 	JButton rectangleButton;
 	JButton undoButton;
+	JButton redoButton;
 	JButton eraserButton;
 	JButton lineButton;
 	JButton cursorButton;
@@ -351,6 +353,8 @@ class Application extends JPanel {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
+				BufferedImage temp = createImage(canvas);
+				redoImage.add(temp);
 				canvasImage = undoImages.get(undoImages.size()-1);
 				undoImages.remove(undoImages.size()-1);
 				bufferGraphics = canvasImage.createGraphics();
@@ -394,6 +398,22 @@ class Application extends JPanel {
 				currentTool = line;
 			}
 		
+		});
+
+		// Redo button
+		redoButton = new JButton();
+		redoButton.setSize(32,32);
+		redoButton.setLocation(85+offset+225+45, 7);
+		redoButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				canvasImage = undoImages.get(undoImages.size()-1);
+				undoImages.remove(undoImages.size()-1);
+				bufferGraphics = canvasImage.createGraphics();
+				repaintIt();
+			}
+
 		});
 		
 	}
