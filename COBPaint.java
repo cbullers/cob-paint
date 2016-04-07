@@ -4,13 +4,18 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
@@ -19,9 +24,12 @@ import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JApplet;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -69,10 +77,18 @@ class Application extends JPanel {
 	JSlider greenSlider;
 	JSlider blueSlider;
 	
+	JButton saveButton;
 	JButton penButton;
 	JButton rollerButton;
+	JButton bucketButton;
 	
 	JPanel canvas;
+	
+	static BufferedImage canvasImage;
+	Graphics2D bufferGraphics;
+	
+	PointerInfo p;
+	Point b;
 	
 	Toolkit toolkit = Toolkit.getDefaultToolkit();
 	Image penCursorImg = toolkit.getImage("../pencil.png");
@@ -81,24 +97,41 @@ class Application extends JPanel {
 	Image rollerCursorImg = toolkit.getImage("../roller.png");
 	Cursor rollerCursor = toolkit.createCustomCursor(rollerCursorImg, new Point(this.getX(), this.getY()), "rollerCursor");
 	
+	Image bucketCursorImg = toolkit.getImage("../bucket.png");
+	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
+	
+	//debug
+	int offset = 35;
+	
+	boolean pressingDown = false;
+	
 	public Application(JApplet a) { 
 		codeBase = a.getCodeBase();
 		setLayout(null);
 		initSliders();
 		initCanvas();
 		initButtons();
+		add(saveButton);
 		add(redSlider);
 		add(greenSlider);
 		add(blueSlider);
 		add(penButton);
 		add(rollerButton);
+		add(bucketButton);
 		add(canvas);
+		
+		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
+		bufferGraphics = (Graphics2D)canvasImage.createGraphics();
 	}
 	
 	private void repaintIt(){
 		super.repaint();
 	}
 
+	public static BufferedImage getCavasImage() { 
+		return canvasImage;
+	}
+	
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
@@ -131,11 +164,79 @@ class Application extends JPanel {
 		
 	}
 	
+
+	public BufferedImage createImage(JPanel panel) {
+
+		int w = panel.getWidth();
+		int h = panel.getHeight();
+		BufferedImage bi = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = bi.createGraphics();
+		panel.print(g);
+		return bi;
+	}
+	
+	private String askForString(String message) {
+		return JOptionPane.showInputDialog(message);
+	}
+	
+	private String askForDirectory(String choosertitle) {
+	    JFileChooser chooser = new JFileChooser(); 
+	    chooser.setCurrentDirectory(new java.io.File("."));
+	    chooser.setDialogTitle(choosertitle);
+	    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+	    //
+	    // disable the "All files" option.
+	    //
+	    chooser.setAcceptAllFileFilterUsed(false);
+	    //    
+	    if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) { 
+	      	return chooser.getSelectedFile().getAbsolutePath().toString() + "\\";
+	      }
+	    else {
+	      System.out.println("No Selection ");
+	      }
+	    return " ";
+	}
+	
 	private void initButtons() {
+		
+		// Save button
+		saveButton = new JButton();
+		saveButton.setSize(32,32);
+		saveButton.setLocation(7,7);
+		try{
+			URL saveUrl = new URL(codeBase, "../save.png");
+			Image img = ImageIO.read(saveUrl);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			saveButton.setIcon(new ImageIcon(img));
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+		saveButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent a) {
+				String directory = askForDirectory("Please go to the directory where you would like to save your drawing.");
+				if(directory == "No Selection"){return;}
+				String fileName = askForString("What do you want the file to be called (dont add extension)");
+				fileName += ".png";
+				directory += fileName;
+				
+				BufferedImage capture = createImage(canvas);
+			    File saveOutput = new File(directory);
+			    try {
+					ImageIO.write(capture, "png", saveOutput);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			
+		});
+		
 		// Pen button
 		penButton = new JButton();
 		penButton.setSize(32,32);
-		penButton.setLocation(7,7);
+		penButton.setLocation(7+offset,7);
 		try{
 			URL penUrl = new URL(codeBase, "../pencil.png");
 			Image img = ImageIO.read(penUrl);
@@ -158,7 +259,7 @@ class Application extends JPanel {
 		// Roller Button
 		rollerButton = new JButton();
 		rollerButton.setSize(32,32);
-		rollerButton.setLocation(45,7);
+		rollerButton.setLocation(45+offset,7);
 		try{
 			URL rollerUrl = new URL(codeBase, "../roller.png");
 			Image img = ImageIO.read(rollerUrl);
@@ -172,6 +273,29 @@ class Application extends JPanel {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				currentTool = new RollerTool();
+				resetCursor();
+			}
+			
+		});
+		
+		// Roller Button
+		bucketButton = new JButton();
+		bucketButton.setSize(32,32);
+		bucketButton.setLocation(85+offset,7);
+		try{
+			URL bucketUrl = new URL(codeBase, "../bucket.png");
+			Image img = ImageIO.read(bucketUrl);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			bucketButton.setIcon(new ImageIcon(img));
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+		bucketButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentTool = new BucketTool();
+				resetCursor();
 			}
 			
 		});
@@ -232,6 +356,8 @@ class Application extends JPanel {
 			this.setCursor(penCursor);
 		}else if(currentTool instanceof RollerTool) {
 			this.setCursor(rollerCursor);
+		}else if(currentTool instanceof BucketTool) {
+			this.setCursor(bucketCursor);
 		}
 	}
 	
@@ -239,18 +365,42 @@ class Application extends JPanel {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
 	
+	private void canvasLogic() {
+
+		Thread t = new Thread(new Runnable(){
+			public void run() {
+				while(pressingDown) {
+					p = MouseInfo.getPointerInfo();
+					b = p.getLocation();
+					if(currentTool instanceof PenTool) {
+						bufferGraphics.setColor(new Color(curR, curG, curB));
+						bufferGraphics.fillOval(b.x,b.y, PenTool.brushSize, PenTool.brushSize);
+						repaintIt();
+					}else if(currentTool instanceof RollerTool) {
+						bufferGraphics.setColor(new Color(curR, curG, curB));
+						bufferGraphics.fillOval(b.x, b.y, RollerTool.brushSize, RollerTool.brushSize);
+						repaintIt();
+					}
+				}
+			}
+		});
+		t.start();
+	}
+	
 	private void initCanvas() {
-		
-		boolean pressingDown = false;
-		
-		canvas = new JPanel();
+
+		canvas = new Canvas();
 		canvas.setLocation(0,50);
 		canvas.setSize(800,600);
+		canvas.setBorder(new EmptyBorder(0, 0, 0, 0));
 		canvas.addMouseListener(new MouseListener() {
 
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
-				System.out.println("hello");
+				if(currentTool instanceof BucketTool) {
+					((Canvas) canvas).setTheBackgroundColor(new Color(curR, curG, curB));
+					repaintIt();
+				}
 			}
 
 			@Override
@@ -261,13 +411,13 @@ class Application extends JPanel {
 			@Override
 			public void mouseExited(MouseEvent arg0) {
 				setDefaultCursor();
-				
+				pressingDown = false;
 			}
 
 			@Override
 			public void mousePressed(MouseEvent arg0) {
 				pressingDown = true;
-				canvasLogic(); // Need to make
+				canvasLogic();
 			}
 
 
@@ -278,6 +428,28 @@ class Application extends JPanel {
 			
 		});
 	}
+}
+
+class Canvas extends JPanel {
+	
+	private static final long serialVersionUID = 1L;
+	private Color backgroundColor = new Color(255,255,255);
+	
+	Canvas() {
+	}
+	
+	public void setTheBackgroundColor(Color c) {
+		backgroundColor = c;
+	}
+	
+	@Override
+	public void paintComponent(Graphics g) {
+		g.setColor(backgroundColor);
+		g.fillRect(0, 0, this.getWidth(), this.getHeight());
+		g.drawImage(Application.getCavasImage(),0, -75, null);
+	}
+
+	
 }
 
 class Tool {
@@ -292,13 +464,14 @@ class Tool {
 
 class PenTool extends Tool {
 	
+	public static int brushSize = 3;
+	
 }
 
 class RollerTool extends Tool {
 	
+	public static int brushSize = 20;
+	
 }
 
-class BucketTool extends Tool {
-	
-	
-}
+class BucketTool extends Tool { /* I guess this class isnt really needed, but yolo */ }
