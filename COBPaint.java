@@ -123,6 +123,9 @@ class Application extends JPanel {
 	Image bucketCursorImg = toolkit.getImage("../bucket.png");
 	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
 	
+	Image eraserImg = toolkit.getImage("../eraser.png");
+	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
+	
 	//debug
 	int offset = 35;
 	
@@ -355,9 +358,18 @@ class Application extends JPanel {
 				undoImages.remove(undoImages.size()-1);
 				bufferGraphics = canvasImage.createGraphics();
 				repaintIt();
+				((Canvas) canvas).repaintCanvas();
 			}
 			
 		});
+		try{
+			URL undoUrl = new URL(codeBase, "../undo.png");
+			Image img = ImageIO.read(undoUrl);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			undoButton.setIcon(new ImageIcon(img));
+		}catch(IOException e){
+			e.printStackTrace();
+		}
 		
 		// Eraser button
 		eraserButton = new JButton();
@@ -369,6 +381,14 @@ class Application extends JPanel {
 				currentTool = eraser;
 			}
 		});
+		try{
+			URL eraserUrl = new URL(codeBase, "../eraser.png");
+			Image img = ImageIO.read(eraserUrl);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			eraserButton.setIcon(new ImageIcon(img));
+		}catch(IOException e){
+			e.printStackTrace();
+		}
 		
 		// Cursor button
 		cursorButton = new JButton("Cursor");
@@ -473,6 +493,8 @@ class Application extends JPanel {
 			this.setCursor(rollerCursor);
 		}else if(currentTool instanceof BucketTool) {
 			this.setCursor(bucketCursor);
+		}else if(currentTool instanceof EraserTool) {
+			this.setCursor(eraserCursor);
 		}
 	}
 	
@@ -480,17 +502,35 @@ class Application extends JPanel {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
 	
-	int lineStartX, lineStartY, lineEndX, lineEndY;
+	int newX, newY, oldX, oldY;
 	private void canvasLogic(final int initialX, final int initialY, final Color bgColor) {
-
+		
 		Thread t = new Thread(new Runnable(){
 			public void run() {
 				while(pressingDown) {
 					p = MouseInfo.getPointerInfo();
 					b = p.getLocation();
+					oldX = b.x;
+					oldY = b.y;
+					System.out.print("OLD: ");
+					System.out.print(oldX);
+					System.out.print(" , ");
+					System.out.print(oldY);
+					
+					System.out.println();
+					
+					System.out.print("NEW: ");
+					System.out.print(newX);
+					System.out.print(" , ");
+					System.out.print(newX);
+					
+					System.out.println();
+					
 					if(currentTool instanceof PenTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.fillOval(b.x,b.y-75, desiredBrushWidth, desiredBrushWidth);
+						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						newX = oldX;
+						newY = oldY;
 						repaintIt();
 					}else if(currentTool instanceof RollerTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
@@ -523,34 +563,37 @@ class Application extends JPanel {
 						b = p.getLocation();
 						
 						bufferGraphics.setColor(bgColor);
-						bufferGraphics.fillOval(b.x, b.y, desiredBrushWidth, desiredBrushWidth);
+						bufferGraphics.fillOval(b.x-5, b.y-80, desiredBrushWidth, desiredBrushWidth);
 						repaintIt();
 					}else if(currentTool instanceof LineTool) {
-						p = MouseInfo.getPointerInfo();
-						b = p.getLocation();
-						
-						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
-						
-						bufferGraphics.setColor(bgColor);
-						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
-						
-						lineStartX = initialX;
-						lineStartY = initialY;
-						lineEndX = b.x;
-						lineEndY = b.y;
-						repaintIt();
+//						p = MouseInfo.getPointerInfo();
+//						b = p.getLocation();
+//						
+//						bufferGraphics.setColor(new Color(curR, curG, curB));
+//						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
+//						
+//						bufferGraphics.setColor(bgColor);
+//						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
+//						
+//						lineStartX = initialX;
+//						lineStartY = initialY;
+//						lineEndX = b.x;
+//						lineEndY = b.y;
+//						repaintIt();
 					}
 				}
-				if(currentTool instanceof LineTool) {
-					bufferGraphics.setColor(new Color(curR, curG, curB));
-					bufferGraphics.drawLine(lineStartX, lineStartY, lineEndX, lineEndY);
-				}
+				oldX = 0;
+				oldY = 0;
+				newX = 0;
+				newY = 0;
+//				if(currentTool instanceof LineTool) {
+//					bufferGraphics.setColor(new Color(curR, curG, curB));
+//					bufferGraphics.drawLine(lineStartX, lineStartY, lineEndX, lineEndY);
+//				}
 			}
 		});
 		t.start();
 	}
-	
 	private void initCanvas() {
 
 		canvas = new Canvas();
@@ -608,8 +651,6 @@ class Canvas extends JPanel {
 	private static final long serialVersionUID = 1L;
 	private Color backgroundColor = new Color(255,255,255);
 	
-	Canvas() {
-	}
 	
 	public void setTheBackgroundColor(Color c) {
 		backgroundColor = c;
@@ -617,6 +658,10 @@ class Canvas extends JPanel {
 	
 	public Color getTheBackgroundColor() {
 		return backgroundColor;
+	}
+	
+	public void repaintCanvas() {
+		this.repaint();
 	}
 	
 	@Override
