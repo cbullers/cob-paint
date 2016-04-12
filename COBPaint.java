@@ -78,22 +78,22 @@ class Application extends JPanel {
 	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>();
 	
-	JSlider redSlider;
-	JSlider greenSlider;
-	JSlider blueSlider;
+	JSlider redSlider;//slider for color red
+	JSlider greenSlider;//slider for color green
+	JSlider blueSlider;//slider for color blue
 	
-	JSlider toolBrushSize;
+	JSlider toolBrushSize;//slider for tool brush 
 	JLabel toolBrushSizeLbl;
 	
-	JButton saveButton;
-	JButton penButton;
-	JButton rollerButton;
-	JButton bucketButton;
-	JButton rectangleButton;
-	JButton undoButton;
-	JButton eraserButton;
-	JButton lineButton;
-	JButton cursorButton;
+	JButton saveButton;//button to save your work
+	JButton penButton;//button for pen
+	JButton rollerButton;//button for roller
+	JButton bucketButton;//button for bucket
+	JButton rectangleButton;//button for rectangle
+	JButton undoButton;//button for undo
+	JButton eraserButton;//button for eraser
+	JButton lineButton;//button for line
+	JButton cursorButton;//button for cursor
 	
 	JPanel canvas;
 	
@@ -125,6 +125,9 @@ class Application extends JPanel {
 	
 	Image eraserImg = toolkit.getImage("../eraser.png");
 	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
+	
+	
+	boolean triedToResizePenTool = false;
 	
 	//debug
 	int offset = 35;
@@ -229,9 +232,8 @@ class Application extends JPanel {
 	      	return chooser.getSelectedFile().getAbsolutePath().toString() + "\\";
 	      }
 	    else {
-	      System.out.println("No Selection ");
+	    	return "No Selection";
 	      }
-	    return " ";
 	}
 	
 	private void initButtons() {
@@ -433,6 +435,15 @@ class Application extends JPanel {
 			@Override
 			public void stateChanged(ChangeEvent e) {
 				//if(!(currentTool instanceof PenTool) || !(currentTool instanceof BucketTool) || !(currentTool instanceof RollerTool)) {return;}
+				if(currentTool instanceof PenTool && !triedToResizePenTool) {
+					JOptionPane.showMessageDialog(
+						    canvas, "Cant change the pen tools brush size!",
+						    "ERROR",
+						    JOptionPane.ERROR_MESSAGE);
+					toolBrushSize.setValue(desiredBrushWidth);
+					triedToResizePenTool = true;
+					return;
+				}
 				int value = toolBrushSize.getValue();
 				desiredBrushWidth = value;
 			}
@@ -442,23 +453,23 @@ class Application extends JPanel {
 		toolBrushSizeLbl.setSize(75,25);
 		toolBrushSizeLbl.setLocation(615, 13);
 		
-		redSlider.setSize(SLIDER_DIMENSION);
-		greenSlider.setSize(SLIDER_DIMENSION);
-		blueSlider.setSize(SLIDER_DIMENSION);
+		redSlider.setSize(SLIDER_DIMENSION);//setting dimensions for red slider
+		greenSlider.setSize(SLIDER_DIMENSION);//setting dimensions for green slider
+		blueSlider.setSize(SLIDER_DIMENSION);// setting dimensions for blue slider
 		
-		redSlider.setLocation(850, 55);
-		greenSlider.setLocation(900, 55);
-		blueSlider.setLocation(950, 55);
+		redSlider.setLocation(850, 55);//setting location for red slider
+		greenSlider.setLocation(900, 55);//setting locations for green slider 
+		blueSlider.setLocation(950, 55);//setting location for blue slider
 		
-		redSlider.setMajorTickSpacing(25);
-		greenSlider.setMajorTickSpacing(25);
-		blueSlider.setMajorTickSpacing(25);
+		redSlider.setMajorTickSpacing(25);//setting the tick spacing for red slider
+		greenSlider.setMajorTickSpacing(25);//seting tick for green slider
+		blueSlider.setMajorTickSpacing(25);//setting tick for blue slider
 		
-		redSlider.setMinorTickSpacing(5);
-		greenSlider.setMinorTickSpacing(5);
-		blueSlider.setMinorTickSpacing(5);
+		redSlider.setMinorTickSpacing(5);//setting the minor tick for red
+		greenSlider.setMinorTickSpacing(5);//setting the minor tick for green
+		blueSlider.setMinorTickSpacing(5);//setting the minor tick spacing for blue
 		
-		redSlider.setPaintTicks(true);
+		redSlider.setPaintTicks(true);//setting the ticks for paint
 		greenSlider.setPaintTicks(true);
 		blueSlider.setPaintTicks(true);
 		
@@ -486,7 +497,7 @@ class Application extends JPanel {
 		
 	}
 	
-	private void resetCursor() {
+	private void resetCursor() {//resetting cursor 
 		if(currentTool instanceof PenTool) {
 			this.setCursor(penCursor);
 		}else if(currentTool instanceof RollerTool) {
@@ -504,6 +515,11 @@ class Application extends JPanel {
 	
 	int newX, newY, oldX, oldY;
 	private void canvasLogic(final int initialX, final int initialY, final Color bgColor) {
+
+		p = MouseInfo.getPointerInfo();
+		b = p.getLocation();
+		newX = b.x;
+		newY = b.y;
 		
 		Thread t = new Thread(new Runnable(){
 			public void run() {
@@ -605,8 +621,11 @@ class Application extends JPanel {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
 				if(currentTool instanceof BucketTool) {
-					((Canvas) canvas).setTheBackgroundColor(new Color(curR, curG, curB));
-					repaintIt();
+					bufferGraphics.setColor(new Color(curR, curG, curB));
+					bufferGraphics.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+					canvasImage = undoImages.get(undoImages.size()-1);
+					bufferGraphics = canvasImage.createGraphics();
+					((Canvas) canvas).repaintCanvas();
 				}
 			}
 
@@ -650,8 +669,7 @@ class Canvas extends JPanel {
 	
 	private static final long serialVersionUID = 1L;
 	private Color backgroundColor = new Color(255,255,255);
-	
-	
+
 	public void setTheBackgroundColor(Color c) {
 		backgroundColor = c;
 	}
@@ -664,10 +682,20 @@ class Canvas extends JPanel {
 		this.repaint();
 	}
 	
+	Runnable r = new Runnable() {
+		public void run() {
+			while(true) {
+				getGraphics().drawImage(Application.getCavasImage(), 0, 0, null);
+			}
+		}
+	};
+	
+	Thread cool = new Thread(r);
+	
+	
 	@Override
 	public void paintComponent(Graphics g) {
 		g.setColor(backgroundColor);
-		g.fillRect(0, 0, this.getWidth(), this.getHeight());
 		g.drawImage(Application.getCavasImage(),0, 0, null);
 	}
 
