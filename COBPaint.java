@@ -51,6 +51,7 @@ public class COBPaint extends JApplet {
 	public void init() {
 		
 		setSize(1000,650);
+		
 		final Application app = new Application(this);
 		
 		try {
@@ -76,6 +77,9 @@ class Application extends JPanel {
 	private URL codeBase;
 	public Tool currentTool;
 	
+	static int multiToolSides;
+	static int multiToolRadius;
+	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>();
 	
 	JSlider redSlider;//slider for color red
@@ -94,8 +98,9 @@ class Application extends JPanel {
 	JButton eraserButton;//button for eraser
 	JButton lineButton;//button for line
 	JButton cursorButton;//button for cursor
+	JButton multiToolButton;
 	
-	JPanel canvas;
+	static JPanel canvas;
 	
 	CursorTool cursor = new CursorTool();
 	PenTool pen = new PenTool();
@@ -104,14 +109,20 @@ class Application extends JPanel {
 	EraserTool eraser = new EraserTool();
 	LineTool line = new LineTool();
 	
+	Color backgroundColor = new Color(238,238,238);
+	
 	static BufferedImage canvasImage;
 	Graphics2D bufferGraphics;
 	
 	PointerInfo p;
 	Point b;
 	
+	boolean isInCanvas;
+	
 	int desiredBrushWidth = 10;
 	int yOffsetDrawing = -75;
+	
+	static int windowsPosX, windowsPosY;
 	
 	Toolkit toolkit = Toolkit.getDefaultToolkit();
 	Image penCursorImg = toolkit.getImage("../pencil.png");
@@ -127,7 +138,11 @@ class Application extends JPanel {
 	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
 	
 	Image rectangleImg = toolkit.getImage("../rectangle.png");
-	Cursor rectangleCursor = toolkit.createCustomCursor(rectangleImg, new Point(this.getX(), this.getY()), "rectangleCursor");
+	//Cursor rectangleCursor = toolkit.createCustomCursor(rectangleImg, new Point(this.getX(), this.getY()), "rectangleCursor");
+	
+	Image multiToolImg = toolkit.getImage("../shapes.png");
+	
+	Image lineToolImg = toolkit.getImage("../line.png");
 	
 	boolean triedToResizePenTool = false;
 	
@@ -143,6 +158,9 @@ class Application extends JPanel {
 		initCanvas();
 		initButtons();
 		addStuff();
+		
+		//windowsPosX = a.getLocationOnScreen().x;
+		//windowsPosY = a.getLocationOnScreen().y;
 		
 		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
 		bufferGraphics = (Graphics2D)canvasImage.createGraphics();
@@ -164,7 +182,53 @@ class Application extends JPanel {
 		add(cursorButton);
 		add(lineButton);
 		add(canvas);
+		add(multiToolButton);
+		//askForNumberSides();
 	}
+	
+	static double halfPI = Math.PI/2;
+	static double twoPI = Math.PI*2;
+	public static void fillRegularPolygon(Graphics g, int centerX, int centerY, int radius, int sides)
+	{
+		int xCoord[] = new int[sides];
+		int yCoord[] = new int[sides];
+	 
+	 	double rotate;
+	    if (sides % 2 == 1)
+	    	rotate = halfPI;
+	    else
+	    	rotate = halfPI + Math.PI/sides;
+	    	
+		for (int k = 0; k < sides; k++)
+		{
+			xCoord[k] = (int) Math.round(Math.cos(twoPI * k/sides - rotate) * radius) + centerX;
+			yCoord[k] = (int) Math.round(Math.sin(twoPI * k/sides - rotate) * radius) + centerY;
+		}
+		g.fillPolygon(xCoord,yCoord,sides);
+	}
+	
+	public static void askForNumberSides() {
+		
+		multiToolSides = Integer.parseInt( (String) JOptionPane.showInputDialog(canvas,
+		        "How many sides for the multi-tool",
+		        "Multi-Tool", JOptionPane.INFORMATION_MESSAGE,
+		        null,
+		        null,
+		        "[number of sides]"));
+		
+	}
+	
+	public static void askForMultiRadius() {
+		
+		multiToolRadius = Integer.parseInt( (String) JOptionPane.showInputDialog(canvas,
+		        "What radius for the multi-tool",
+		        "Multi-Tool", JOptionPane.INFORMATION_MESSAGE,
+		        null,
+		        null,
+		        "[radius in px]"));
+		
+	}
+	
 	
 	private void repaintIt(){
 		super.repaint();
@@ -235,7 +299,7 @@ class Application extends JPanel {
 	      }
 	    else {
 	    	return "No Selection";
-	      }
+	     }
 	}
 	
 	private void initButtons() {
@@ -298,7 +362,7 @@ class Application extends JPanel {
 		// Roller Button
 		rollerButton = new JButton();
 		rollerButton.setSize(32,32);
-		rollerButton.setLocation(45+offset,7);
+		rollerButton.setLocation(42+offset,7);
 		try{
 			URL rollerUrl = new URL(codeBase, "../roller.png");
 			Image img = ImageIO.read(rollerUrl);
@@ -319,7 +383,7 @@ class Application extends JPanel {
 		// Roller Button
 		bucketButton = new JButton();
 		bucketButton.setSize(32,32);
-		bucketButton.setLocation(85+offset,7);
+		bucketButton.setLocation(77+offset,7);
 		try{
 			URL bucketUrl = new URL(codeBase, "../bucket.png");
 			Image img = ImageIO.read(bucketUrl);
@@ -340,7 +404,7 @@ class Application extends JPanel {
 		// Rectangle button
 		rectangleButton = new JButton();
 		rectangleButton.setSize(32,32);
-		rectangleButton.setLocation(85+offset+45,7);
+		rectangleButton.setLocation(85+offset+27,7);
 		rectangleButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -362,7 +426,7 @@ class Application extends JPanel {
 		// Undo button
 		undoButton = new JButton();
 		undoButton.setSize(32,32);
-		undoButton.setLocation(85+offset+90,7);
+		undoButton.setLocation(85+offset+62,7);
 		undoButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -387,7 +451,7 @@ class Application extends JPanel {
 		// Eraser button
 		eraserButton = new JButton();
 		eraserButton.setSize(32,32);
-		eraserButton.setLocation(85+offset+135,7);
+		eraserButton.setLocation(85+offset+97,7);
 		eraserButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -406,7 +470,7 @@ class Application extends JPanel {
 		// Cursor button
 		cursorButton = new JButton("Cursor");
 		cursorButton.setSize(32,32);
-		cursorButton.setLocation(85+offset+180,7);
+		cursorButton.setLocation(85+offset+132,7);
 		cursorButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -419,7 +483,7 @@ class Application extends JPanel {
 		// Line tool button
 		lineButton = new JButton("Line");
 		lineButton.setSize(32,32);
-		lineButton.setLocation(85+offset+225,7);
+		lineButton.setLocation(85+offset+167,7);
 		lineButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -428,6 +492,35 @@ class Application extends JPanel {
 			}
 		
 		});
+		try{
+			URL u = new URL(codeBase, "../line.png");
+			Image img = ImageIO.read(u);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			lineButton.setIcon(new ImageIcon(img));
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+		
+		multiToolButton = new JButton();
+		multiToolButton.setSize(32,32);
+		multiToolButton.setLocation(85+offset+202,7);
+		multiToolButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentTool = new MultiTool();
+				askForNumberSides();
+				askForMultiRadius();
+			}
+		});
+		try{
+			URL u = new URL(codeBase, "../shapes.png");
+			Image img = ImageIO.read(u);
+			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
+			multiToolButton.setIcon(new ImageIcon(img));
+		}catch(IOException e){
+			e.printStackTrace();
+		}
 		
 	}
 	
@@ -518,7 +611,7 @@ class Application extends JPanel {
 		}else if(currentTool instanceof EraserTool) {
 			this.setCursor(eraserCursor);
 		}else if(currentTool instanceof RectangleTool) {
-			this.setCursor(rectangleCursor);
+			this.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 		}
 	}
 	
@@ -528,6 +621,7 @@ class Application extends JPanel {
 	
 	int newX, newY, oldX, oldY;
 	int rectX, rectY, rectX2, rectY2;
+	int lineX, lineY, lineX2, lineY2;
 	private void canvasLogic(final int initialX, final int initialY, final Color bgColor) {
 
 		p = MouseInfo.getPointerInfo();
@@ -540,22 +634,17 @@ class Application extends JPanel {
 				while(pressingDown) {
 					p = MouseInfo.getPointerInfo();
 					b = p.getLocation();
+					
+					System.out.println(windowsPosX);
+					System.out.println(windowsPosY);
+					System.out.println();
+					
+					b.x -= windowsPosX;
+					b.y -= windowsPosY;
+					
 					oldX = b.x;
 					oldY = b.y;
-//					System.out.print("OLD: ");
-//					System.out.print(oldX);
-//					System.out.print(" , ");
-//					System.out.print(oldY);
-//					
-//					System.out.println();
-//					
-//					System.out.print("NEW: ");
-//					System.out.print(newX);
-//					System.out.print(" , ");
-//					System.out.print(newX);
-//					
-//					System.out.println();
-//					
+
 					if(currentTool instanceof PenTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
@@ -581,41 +670,33 @@ class Application extends JPanel {
 						
 						repaintIt();
 					}else if(currentTool instanceof RectangleTool) {
-						p = MouseInfo.getPointerInfo();
-						b = p.getLocation();
 						
 						getGraphics().setColor(new Color(curR, curG, curB));
-						getGraphics().fillRect(initialX+5, initialY-25, b.x-initialX+5, b.y-initialY-25);
+						getGraphics().fillRect(initialX, initialY-25, Math.abs(b.x-initialX), Math.abs(b.y-initialY-25));
 						
-						rectX = initialX+5;
+						rectX = initialX;
 						rectY = initialY-75;
-						rectX2 = b.x-initialX+5;
+						rectX2 = b.x-initialX;
 						rectY2 = b.y-initialY-25;
 						
 						repaintIt();
 					}else if(currentTool instanceof EraserTool) {
-						p = MouseInfo.getPointerInfo();
-						b = p.getLocation();
 						
-						bufferGraphics.setColor(bgColor);
+						bufferGraphics.setColor(backgroundColor);
 						bufferGraphics.fillOval(b.x-5, b.y-80, desiredBrushWidth, desiredBrushWidth);
 						
 						repaintIt();
 					}else if(currentTool instanceof LineTool) {
-//						p = MouseInfo.getPointerInfo();
-//						b = p.getLocation();
-//						
-//						bufferGraphics.setColor(new Color(curR, curG, curB));
-//						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
-//						
-//						bufferGraphics.setColor(bgColor);
-//						bufferGraphics.drawLine(initialX, initialY, b.x, b.y);
-//						
-//						lineStartX = initialX;
-//						lineStartY = initialY;
-//						lineEndX = b.x;
-//						lineEndY = b.y;
-//						repaintIt();
+						
+						getGraphics().setColor(new Color(curR, curG, curB));
+						getGraphics().drawLine(initialX, initialY, b.x, b.y-50);
+						
+						lineX = initialX;
+						lineY = initialY-50;
+						lineX2 = b.x;
+						lineY2 = b.y-100;
+						
+						repaintIt();
 					}
 				}
 				oldX = 0;
@@ -625,14 +706,14 @@ class Application extends JPanel {
 				
 				if(currentTool instanceof RectangleTool) {
 					
-					System.out.println(rectX);
-					System.out.println(rectY);
-					System.out.println(rectX2);
-					System.out.println(rectY2);
-					System.out.println();
+					bufferGraphics.setColor(new Color(curR, curG, curB));
+					bufferGraphics.fillRect(rectX, rectY, Math.abs(rectX2), Math.abs(rectY2));
+					repaintIt();
+					
+				}else if(currentTool instanceof LineTool) {
 					
 					bufferGraphics.setColor(new Color(curR, curG, curB));
-					bufferGraphics.fillRect(rectX, rectY, rectX2, rectY2);
+					bufferGraphics.drawLine(lineX, lineY, lineX2, lineY2);
 					repaintIt();
 					
 				}
@@ -644,6 +725,7 @@ class Application extends JPanel {
 			}
 		});
 		t.start();
+		
 	}
 	private void initCanvas() {
 
@@ -657,13 +739,22 @@ class Application extends JPanel {
 			public void mouseClicked(MouseEvent arg0) {
 				if(currentTool instanceof BucketTool) {
 					bufferGraphics.setColor(new Color(curR, curG, curB));
+					backgroundColor = new Color(curR, curG, curB);
 					bufferGraphics.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+					repaintIt();
+				}else if(currentTool instanceof MultiTool) {
+					p = MouseInfo.getPointerInfo();
+					b = p.getLocation();
+					
+					bufferGraphics.setColor(new Color(curR, curG, curB));
+					fillRegularPolygon(bufferGraphics, b.x, b.y-75, multiToolRadius, multiToolSides);
 					repaintIt();
 				}
 			}
 
 			@Override
 			public void mouseEntered(MouseEvent arg0) {
+				isInCanvas = true;
 				resetCursor();
 			}
 
@@ -671,6 +762,7 @@ class Application extends JPanel {
 			public void mouseExited(MouseEvent arg0) {
 				setDefaultCursor();
 				pressingDown = false;
+				isInCanvas = false;
 			}
 
 			@Override
@@ -774,3 +866,4 @@ class LineTool extends Tool {
 	public int startX, startY, endX, endY;
 }
 class EraserTool extends Tool {}
+class MultiTool extends Tool {}
