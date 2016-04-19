@@ -12,6 +12,8 @@ import java.awt.PointerInfo;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
@@ -48,6 +50,14 @@ public class COBPaint extends JApplet {
 
 	private static final long serialVersionUID = 1L;
 
+	public Point getLocationScreen() {
+		if(this.isShowing()) {
+			return getLocationOnScreen();
+		}else{
+			return new Point(0,0);
+		}
+	}
+	
 	public void init() {
 		
 		setSize(1000,650);
@@ -58,6 +68,7 @@ public class COBPaint extends JApplet {
 			SwingUtilities.invokeAndWait(new Runnable() {
 				public void run() {
 					setContentPane(app);
+					
 				}
 			});
 		}catch(InvocationTargetException e) {
@@ -117,7 +128,11 @@ class Application extends JPanel {
 	PointerInfo p;
 	Point b;
 	
+	Point locationOnScreen;
+	
 	boolean isInCanvas;
+	
+	JApplet ap;
 	
 	int desiredBrushWidth = 10;
 	int yOffsetDrawing = -75;
@@ -151,7 +166,7 @@ class Application extends JPanel {
 	
 	boolean pressingDown = false;
 	
-	public Application(JApplet a) { 
+	public Application(final JApplet a) { 
 		codeBase = a.getCodeBase();
 		setLayout(null);
 		initSliders();
@@ -159,8 +174,7 @@ class Application extends JPanel {
 		initButtons();
 		addStuff();
 		
-		//windowsPosX = a.getLocationOnScreen().x;
-		//windowsPosY = a.getLocationOnScreen().y;
+		ap = a;
 		
 		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
 		bufferGraphics = (Graphics2D)canvasImage.createGraphics();
@@ -632,15 +646,19 @@ class Application extends JPanel {
 		Thread t = new Thread(new Runnable(){
 			public void run() {
 				while(pressingDown) {
+					
+					if(!ap.isShowing()) return;
+					
 					p = MouseInfo.getPointerInfo();
 					b = p.getLocation();
 					
-					System.out.println(windowsPosX);
-					System.out.println(windowsPosY);
-					System.out.println();
+					locationOnScreen = ap.getLocationOnScreen();
 					
-					b.x -= windowsPosX;
-					b.y -= windowsPosY;
+					b.x -= locationOnScreen.x;
+					b.y -= locationOnScreen.y;
+					
+					//b.x-=50;
+					b.y+=50;
 					
 					oldX = b.x;
 					oldY = b.y;
@@ -648,8 +666,8 @@ class Application extends JPanel {
 					if(currentTool instanceof PenTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
-						newX = oldX;
-						newY = oldY;
+						newX = oldX-locationOnScreen.x;
+						newY = oldY-locationOnScreen.y;
 						repaintIt();
 					}else if(currentTool instanceof RollerTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
