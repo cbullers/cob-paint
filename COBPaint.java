@@ -86,83 +86,89 @@ public class COBPaint extends JApplet {
 
 class Application extends JPanel {
 	
-	private static final long serialVersionUID = 1L;
-	private static Dimension SLIDER_DIMENSION = new Dimension(30,500);
-	private int curR, curB, curG = 255;
-	private URL codeBase;
-	public Tool currentTool;
+	private static final long serialVersionUID = 1L; // It gets mad if I dont put this
+
+	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (x,y)
+
+	private int curR, curG, curB = 255, 255, 255; // White default color
+
+	private URL codeBase; // Where the application is being ran from
+
+	List<BufferedImage> undoImages = new ArrayList<BufferedImage>(); // Store the bufferedimages for undo
+
+	public Tool currentTool; // The selected tool
 	
-	static int multiToolSides;
+	static int multiToolSides; // Variables for the multi-tool
 	static int multiToolRadius;
+
 	
-	List<BufferedImage> undoImages = new ArrayList<BufferedImage>();
+	JSlider redSlider;
+	JSlider greenSlider; // The sliders to select rgb color
+	JSlider blueSlider;
 	
-	JSlider redSlider;//slider for color red
-	JSlider greenSlider;//slider for color green
-	JSlider blueSlider;//slider for color blue
+	JSlider toolBrushSize;// Slider for how big you want your current tools brush size to be
 	
-	JSlider toolBrushSize;//slider for tool brush 
 	JLabel toolBrushSizeLbl;
 	
-	JButton saveButton;//button to save your work
-	JButton penButton;//button for pen
-	JButton rollerButton;//button for roller
-	JButton bucketButton;//button for bucket
-	JButton rectangleButton;//button for rectangle
-	JButton undoButton;//button for undo
-	JButton eraserButton;//button for eraser
-	JButton lineButton;//button for line
-	JButton cursorButton;//button for cursor
+	JButton saveButton;
+	JButton penButton;
+	JButton rollerButton;
+	JButton bucketButton;
+	JButton rectangleButton;
+	JButton undoButton;			// All buttons in the toolbar
+	JButton eraserButton;
+	JButton lineButton;
+	JButton cursorButton;
 	JButton multiToolButton;
 	JButton waveToolButton;
 	
-	static JPanel canvas;
+	static JPanel canvas; // Where to draw on
 	
 	CursorTool cursor = new CursorTool();
 	PenTool pen = new PenTool();
 	RollerTool roller = new RollerTool();
 	BucketTool bucket = new BucketTool();
-	EraserTool eraser = new EraserTool();
+	EraserTool eraser = new EraserTool();	// Make new tool object to save memory
 	LineTool line = new LineTool();
+	RectangleTool rect = new RectangleTool();
+	EraserTool eraser = new EraserTool();
+	MultiTool multitool = new MultiTool();
+	WaveTool wavetool = new WaveTool();
 	
-	Color backgroundColor = new Color(238,238,238);
+	Color backgroundColor = new Color(238,238,238); // The default background color of the canvas
 	
-	static BufferedImage canvasImage;
-	Graphics bufferGraphics;
+	static BufferedImage canvasImage; // What to show on the canvas
+	Graphics bufferGraphics; // Where to draw to put it on the image
 	
-	PointerInfo p;
+	PointerInfo p; // For the drawing
 	Point b;
 	
-	Point locationOnScreen;
+	Point locationOnScreen; // The location of the window relative to the screen/monitor
 	
-	boolean isInCanvas;
+	boolean isInCanvas; // Boolean to check if the mouse is in the canvas
 	
-	JApplet ap;
+	JApplet ap; // So I can get the main applet, to run tests
 	
-	int desiredBrushWidth = 10;
-	int yOffsetDrawing = -75;
+	int desiredBrushWidth = 10; // Starting brush width
+	//int yOffsetDrawing = -75; // Dont know why this is here...
 	
-	static int windowsPosX, windowsPosY;
-	
-	Toolkit toolkit = Toolkit.getDefaultToolkit();
+	Toolkit toolkit = Toolkit.getDefaultToolkit(); // So I can get the images easier
+
 	Image penCursorImg = toolkit.getImage("../pencil.png");
-	Cursor penCursor = toolkit.createCustomCursor(penCursorImg, new Point(this.getX(), this.getY()), "penCursor");
-	
 	Image rollerCursorImg = toolkit.getImage("../roller.png");
-	Cursor rollerCursor = toolkit.createCustomCursor(rollerCursorImg, new Point(this.getX(), this.getY()), "rollerCursor");
-	
 	Image bucketCursorImg = toolkit.getImage("../bucket.png");
-	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
-	
 	Image eraserImg = toolkit.getImage("../eraser.png");
-	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
-	
 	Image rectangleImg = toolkit.getImage("../rectangle.png");
-	//Cursor rectangleCursor = toolkit.createCustomCursor(rectangleImg, new Point(this.getX(), this.getY()), "rectangleCursor");
-	
 	Image multiToolImg = toolkit.getImage("../shapes.png");
-	
 	Image lineToolImg = toolkit.getImage("../line.png");
+	Image saveImg = toolkit.getImage("../save.png");
+	Image rectImage = toolkit.getImage("../rectangle.png");
+	Image undoImg = toolkit.getImage("../undo.png");
+
+	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
+	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
+	Cursor rollerCursor = toolkit.createCustomCursor(rollerCursorImg, new Point(this.getX(), this.getY()), "rollerCursor");
+	Cursor penCursor = toolkit.createCustomCursor(penCursorImg, new Point(this.getX(), this.getY()), "penCursor");
 	
 	boolean triedToResizePenTool = false;
 	
@@ -349,238 +355,120 @@ class Application extends JPanel {
 	    	return "No Selection";
 	     }
 	}
+
+	private JButton but(int w, int h, int x, int y, Image icon, ActionListener a) {
+		JButton retButton = new JButton();
+		retButton.setSize(w,h);
+		retButton.setLocation(x,y)
+		retButton.addActionListener(a)
+		try{
+			icon = icon.getScaledInstance(w, h, Image.SCALE_DEFAULT);
+			retButton.setIcon(new ImageIcon(icon));
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+		return retButton;
+	}
+
+	// Action listeners for buttons
+	ActionListener saveButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent a) {
+			String directory = askForDirectory("Please go to the directory where you would like to save your drawing.");
+			if(directory == "No Selection"){return;}
+			String fileName = askForString("What do you want the file to be called (dont add extension)");
+			fileName += ".png";
+			directory += fileName;
+			
+			BufferedImage capture = createImage(canvas);
+		    File saveOutput = new File(directory);
+		    try {
+				ImageIO.write(capture, "png", saveOutput);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	ActionListener penButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent a) {
+			currentTool = pen;
+		}
+	}
+
+	ActionListener rollerButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = roller;
+		}
+	}
+
+	ActionListener bucketButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = bucket;
+		}
+	}
+
+	ActionListener rectangleButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = rect;
+		}
+	}
+
+	ActionListener eraserButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = eraser;
+		}
+	}
+
+	ActionListener cursorButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = cursor;
+		}
+	}
+
+	ActionListener lineButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = line;
+		}
+	}
+
+	ActionListener multiToolButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = multitool;
+			askForNumberSides();
+			askForMultiRadius();
+		}
+	}
+
+	ActionListener waveToolButtonListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = wavetool;
+			askForWaveEquation();
+		}
+	}
 	
-	private void initButtons() {
-		
-		// Save button
-		saveButton = new JButton();
-		saveButton.setSize(32,32);
-		saveButton.setLocation(7,7);
-		try{
-			URL saveUrl = new URL(codeBase, "../save.png");
-			Image img = ImageIO.read(saveUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			saveButton.setIcon(new ImageIcon(img));
-		}catch(IOException e) {
-			e.printStackTrace();
-		}
-		saveButton.addActionListener(new ActionListener() {
+	private void initButtons() { // Intitialize all the toolbar buttons
 
-			@Override
-			public void actionPerformed(ActionEvent a) {
-				String directory = askForDirectory("Please go to the directory where you would like to save your drawing.");
-				if(directory == "No Selection"){return;}
-				String fileName = askForString("What do you want the file to be called (dont add extension)");
-				fileName += ".png";
-				directory += fileName;
-				
-				BufferedImage capture = createImage(canvas);
-			    File saveOutput = new File(directory);
-			    try {
-					ImageIO.write(capture, "png", saveOutput);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-			
-		});
-		
-		// Pen button
-		penButton = new JButton();
-		penButton.setSize(32,32);
-		penButton.setLocation(7+offset,7);
-		try{
-			URL penUrl = new URL(codeBase, "../pencil.png");
-			Image img = ImageIO.read(penUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			penButton.setIcon(new ImageIcon(img));
-		}catch(IOException e) {
-			e.printStackTrace();
-		}
-		penButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent a) {
-				currentTool = pen;
-			}
-			
-		});
-		
-		
-		// Roller Button
-		rollerButton = new JButton();
-		rollerButton.setSize(32,32);
-		rollerButton.setLocation(42+offset,7);
-		try{
-			URL rollerUrl = new URL(codeBase, "../roller.png");
-			Image img = ImageIO.read(rollerUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			rollerButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		rollerButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				currentTool = roller;
-			}
-			
-		});
-		
-		// Roller Button
-		bucketButton = new JButton();
-		bucketButton.setSize(32,32);
-		bucketButton.setLocation(77+offset,7);
-		try{
-			URL bucketUrl = new URL(codeBase, "../bucket.png");
-			Image img = ImageIO.read(bucketUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			bucketButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		bucketButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				currentTool = bucket;
-			}
-			
-		});
-		
-		// Rectangle button
-		rectangleButton = new JButton();
-		rectangleButton.setSize(32,32);
-		rectangleButton.setLocation(85+offset+27,7);
-		rectangleButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				currentTool = new RectangleTool();
-				resetCursor();
-			}
-			
-		});
-		try{
-			URL rectangleUrl = new URL(codeBase, "../rectangle.png");
-			Image img = ImageIO.read(rectangleUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			rectangleButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		
-		// Undo button
-		undoButton = new JButton();
-		undoButton.setSize(32,32);
-		undoButton.setLocation(85+offset+62,7);
-		undoButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				canvasImage = undoImages.get(undoImages.size()-1);
-				undoImages.remove(undoImages.size()-1);
-				bufferGraphics = canvasImage.createGraphics();
-				repaintIt();
-				((Canvas) canvas).repaintCanvas();
-			}
-			
-		});
-		try{
-			URL undoUrl = new URL(codeBase, "../undo.png");
-			Image img = ImageIO.read(undoUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			undoButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		
-		// Eraser button
-		eraserButton = new JButton();
-		eraserButton.setSize(32,32);
-		eraserButton.setLocation(85+offset+97,7);
-		eraserButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				currentTool = eraser;
-			}
-		});
-		try{
-			URL eraserUrl = new URL(codeBase, "../eraser.png");
-			Image img = ImageIO.read(eraserUrl);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			eraserButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		
-		// Cursor button
-		cursorButton = new JButton("Cursor");
-		cursorButton.setSize(32,32);
-		cursorButton.setLocation(85+offset+132,7);
-		cursorButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				currentTool = cursor;
-			}
-			
-		});
-		
-		// Line tool button
-		lineButton = new JButton("Line");
-		lineButton.setSize(32,32);
-		lineButton.setLocation(85+offset+167,7);
-		lineButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				currentTool = line;
-			}
-		
-		});
-		try{
-			URL u = new URL(codeBase, "../line.png");
-			Image img = ImageIO.read(u);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			lineButton.setIcon(new ImageIcon(img));
-		}catch(IOException e) {
-			e.printStackTrace();
-		}
-		
-		multiToolButton = new JButton();
-		multiToolButton.setSize(32,32);
-		multiToolButton.setLocation(85+offset+202,7);
-		multiToolButton.addActionListener(new ActionListener() {
-			
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				currentTool = new MultiTool();
-				askForNumberSides();
-				askForMultiRadius();
-			}
-		});
-		try{
-			URL u = new URL(codeBase, "../shapes.png");
-			Image img = ImageIO.read(u);
-			img = img.getScaledInstance(32, 32, Image.SCALE_DEFAULT);
-			multiToolButton.setIcon(new ImageIcon(img));
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-		
-		waveToolButton = new JButton();
-		waveToolButton.setSize(32,32);
-		waveToolButton.setLocation(85+offset+247,7);
-		waveToolButton.addActionListener(new ActionListener() {
-			
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				currentTool = new WaveTool();
-				askForWaveEquation();
-			}
-		});
+		saveButton = but(32,32,7,7,saveImg,saveButtonListener);
+		penButton = but(32,32,7+offset,7,penCursorImg,penButtonListener);
+		rollerButton = but(32,32,42+offset,7,rollerCursorImg,rollerButtonListener);
+		bucketButton = but(32,32,77+offset,7,bucketCursorImg,bucketButtonListener);
+		rectangleButton = but(32,32,85+offset+27,7,rectangleImg,rectangleButtonListener);
+		undoButton = but(32,32,85+offset+62,7,undoImg,undoButtonListener);
+		eraserButton = but(32,32,85+offset+92,7,eraserImg,eraserButtonListener);
+		cursorButton = but(32,32,85+offset+132,7,eraserImg,cursorButtonListener);
+		lineButton = but(32,32,85+offset+167,7,lineToolImg,lineButtonListener);
+		multiToolButton = but(32,32,85+offset+202,7,multiToolImg,multiToolButtonListener);
+		waveToolButton = but(32,32,85+offset+247,7,multiToolImg,waveToolButtonListener);
 		
 	}
 	
@@ -696,7 +584,7 @@ class Application extends JPanel {
 	Rectangle rectangle;
 	int lineX, lineY, lineX2, lineY2;
 	int initX, initY;
-	private void canvasLogic(final int initialX, final int initialY, final Color bgColor) {
+	private void canvasLogic(final int initialX, final int initialY) {
 
 		initX = initialX;
 		initY = initialY;
@@ -851,7 +739,7 @@ class Application extends JPanel {
 				p = MouseInfo.getPointerInfo();
 				b = p.getLocation();
 				locationOnScreen = ap.getLocationOnScreen();
-				canvasLogic(b.x-locationOnScreen.x, b.y-locationOnScreen.y, ((Canvas) canvas).getTheBackgroundColor());
+				canvasLogic(b.x-locationOnScreen.x, b.y-locationOnScreen.y);
 			}
 
 
@@ -883,17 +771,6 @@ class Canvas extends JPanel {
 		this.repaint();
 	}
 	
-	Runnable r = new Runnable() {
-		public void run() {
-			while(true) {
-				getGraphics().drawImage(Application.getCavasImage(), 0, 0, null);
-			}
-		}
-	};
-	
-	Thread cool = new Thread(r);
-	
-	
 	@Override
 	public void paintComponent(Graphics g) {
 		g.setColor(backgroundColor);
@@ -903,44 +780,13 @@ class Canvas extends JPanel {
 	
 }
 
-class Tool {
-	
-	public int brushSize = 5;
-	
-	public void setBrushSize(int s) {
-		this.brushSize = s;
-	}
-	
-}
-
-class PenTool extends Tool {
-	
-	public int brushSize = 5;
-	
-	@Override
-	public void setBrushSize(int s) {
-		this.brushSize = s;
-	}
-	
-}
-
-class RollerTool extends Tool {
-	
-	public int brushSize = 10;
-	
-	@Override
-	public void setBrushSize(int s) {
-		this.brushSize = s;
-	}
-	
-}
-
-class CursorTool extends Tool{}
-class BucketTool extends Tool { /* I guess this class isn't really needed, but yolo */ }
+class Tool {}
+class PenTool extends Tool {}
+class RollerTool extends Tool {}
+class CursorTool extends Tool {}
+class BucketTool extends Tool {}
 class RectangleTool extends Tool {}
-class LineTool extends Tool {
-	public int startX, startY, endX, endY;
-}
+class LineTool extends Tool {}
 class EraserTool extends Tool {}
 class MultiTool extends Tool {}
 class WaveTool extends Tool {}
