@@ -9,11 +9,10 @@ import java.awt.Image;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.PointerInfo;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
@@ -23,8 +22,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import javax.swing.ImageIcon;
 import javax.swing.JApplet;
 import javax.swing.JButton;
@@ -110,6 +114,7 @@ class Application extends JPanel {
 	JButton lineButton;//button for line
 	JButton cursorButton;//button for cursor
 	JButton multiToolButton;
+	JButton waveToolButton;
 	
 	static JPanel canvas;
 	
@@ -123,7 +128,7 @@ class Application extends JPanel {
 	Color backgroundColor = new Color(238,238,238);
 	
 	static BufferedImage canvasImage;
-	Graphics2D bufferGraphics;
+	Graphics bufferGraphics;
 	
 	PointerInfo p;
 	Point b;
@@ -177,7 +182,8 @@ class Application extends JPanel {
 		ap = a;
 		
 		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
-		bufferGraphics = (Graphics2D)canvasImage.createGraphics();
+		bufferGraphics = (Graphics)canvasImage.createGraphics();
+		
 	}
 	
 	private void addStuff() {
@@ -197,6 +203,7 @@ class Application extends JPanel {
 		add(lineButton);
 		add(canvas);
 		add(multiToolButton);
+		add(waveToolButton);
 		//askForNumberSides();
 	}
 	
@@ -241,6 +248,33 @@ class Application extends JPanel {
 		        null,
 		        "[radius in px]"));
 		
+	}
+	
+	public static void askForWaveEquation() {
+
+		multiToolRadius = Integer.parseInt( (String) JOptionPane.showInputDialog(canvas,
+		        "Enter your wave equation",
+		        "Wave Tool", JOptionPane.INFORMATION_MESSAGE,
+		        null,
+		        null,
+		        "[equation using x]"));
+		
+	}
+	
+	  static int eval(String infix) {        
+	        ScriptEngineManager mgr = new ScriptEngineManager();
+	        ScriptEngine engine = mgr.getEngineByName("JavaScript");    
+	        String stringResult;
+	        try {
+	            stringResult = engine.eval(infix).toString();
+	            double doubleResult = Double.parseDouble(stringResult);
+	            int result = (int) doubleResult;        
+	            return result;
+	        } catch (ScriptException ex) {
+	            ex.printStackTrace();
+	        }
+	        return(1);
+
 	}
 	
 	
@@ -536,8 +570,21 @@ class Application extends JPanel {
 			e.printStackTrace();
 		}
 		
+		waveToolButton = new JButton();
+		waveToolButton.setSize(32,32);
+		waveToolButton.setLocation(85+offset+247,7);
+		waveToolButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentTool = new WaveTool();
+				askForWaveEquation();
+			}
+		});
+		
 	}
 	
+
 	public void initSliders() {
 		redSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
 		greenSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
@@ -629,20 +676,38 @@ class Application extends JPanel {
 		}
 	}
 	
+	private static void fillRectangle(Graphics g, int x1, int y1, int x2, int y2)
+	{
+		int temp;
+		if (x1 > x2)
+			{ temp = x1; x1 = x2; x2 = temp; }
+		if (y1 > y2)
+			{ temp = y1; y1 = y2; y2 = temp; }
+		int width  = x2 - x1 + 1;
+		int height = y2 - y1 + 1;
+		g.fillRect(x1,y1,width,height);
+	}
+	
 	private void setDefaultCursor() {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
 	
 	int newX, newY, oldX, oldY;
-	int rectX, rectY, rectX2, rectY2;
+	Rectangle rectangle;
 	int lineX, lineY, lineX2, lineY2;
+	int initX, initY;
 	private void canvasLogic(final int initialX, final int initialY, final Color bgColor) {
 
+		initX = initialX;
+		initY = initialY;
+		
 		p = MouseInfo.getPointerInfo();
 		b = p.getLocation();
-		newX = b.x;
-		newY = b.y;
+		locationOnScreen = ap.getLocationOnScreen();
+		newX = b.x - locationOnScreen.x;
+		newY = b.y - locationOnScreen.y + 50;
 		
+
 		Thread t = new Thread(new Runnable(){
 			public void run() {
 				while(pressingDown) {
@@ -664,10 +729,11 @@ class Application extends JPanel {
 					oldY = b.y;
 
 					if(currentTool instanceof PenTool) {
+						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
-						newX = oldX-locationOnScreen.x;
-						newY = oldY-locationOnScreen.y;
+						newX = oldX;
+						newY = oldY;
 						repaintIt();
 					}else if(currentTool instanceof RollerTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
@@ -679,23 +745,21 @@ class Application extends JPanel {
 						bufferGraphics.fillOval(b.x+(d), b.y-75, dotSize, dotSize);
 						bufferGraphics.fillOval(b.x, b.y-75, dotSize, dotSize);
 						
-						// To space it out
-						try {
-							Thread.sleep(1);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
 						
 						repaintIt();
 					}else if(currentTool instanceof RectangleTool) {
 						
-						getGraphics().setColor(new Color(curR, curG, curB));
-						getGraphics().fillRect(initialX, initialY-25, Math.abs(b.x-initialX), Math.abs(b.y-initialY-25));
+						Rectangle rekt = new Rectangle(initX, initY, b.x-initX, b.y-initY-50);
 						
-						rectX = initialX;
-						rectY = initialY-75;
-						rectX2 = b.x-initialX;
-						rectY2 = b.y-initialY-25;
+						getGraphics().setColor(new Color(255,255,255));
+						//getGraphics().fillRect(initX, initY-25, Math.abs(b.x-initX), Math.abs(b.y-initY-25));
+						getGraphics().fillRect((int)rekt.getX(),(int)rekt.getY(),(int)rekt.getWidth(),(int)rekt.getHeight());
+						
+						rectangle = rekt;
+						
+						System.out.println(rectangle.getX());
+						System.out.println(rectangle.getWidth());
+						System.out.println();
 						
 						repaintIt();
 					}else if(currentTool instanceof EraserTool) {
@@ -715,17 +779,15 @@ class Application extends JPanel {
 						lineY2 = b.y-100;
 						
 						repaintIt();
+					}else if(currentTool instanceof WaveTool) {
+						
 					}
 				}
-				oldX = 0;
-				oldY = 0;
-				newX = 0;
-				newY = 0;
 				
 				if(currentTool instanceof RectangleTool) {
 					
 					bufferGraphics.setColor(new Color(curR, curG, curB));
-					bufferGraphics.fillRect(rectX, rectY, Math.abs(rectX2), Math.abs(rectY2));
+					fillRectangle(bufferGraphics, (int)rectangle.getX(), (int)rectangle.getY() - 50, (int)(rectangle.getX()+rectangle.getWidth()), (int)(rectangle.getY()+rectangle.getHeight()) - 50);
 					repaintIt();
 					
 				}else if(currentTool instanceof LineTool) {
@@ -736,10 +798,6 @@ class Application extends JPanel {
 					
 				}
 				
-//				if(currentTool instanceof LineTool) {
-//					bufferGraphics.setColor(new Color(curR, curG, curB));
-//					bufferGraphics.drawLine(lineStartX, lineStartY, lineEndX, lineEndY);
-//				}
 			}
 		});
 		t.start();
@@ -792,8 +850,8 @@ class Application extends JPanel {
 				
 				p = MouseInfo.getPointerInfo();
 				b = p.getLocation();
-				
-				canvasLogic(b.x, b.y, ((Canvas) canvas).getTheBackgroundColor());
+				locationOnScreen = ap.getLocationOnScreen();
+				canvasLogic(b.x-locationOnScreen.x, b.y-locationOnScreen.y, ((Canvas) canvas).getTheBackgroundColor());
 			}
 
 
@@ -885,3 +943,4 @@ class LineTool extends Tool {
 }
 class EraserTool extends Tool {}
 class MultiTool extends Tool {}
+class WaveTool extends Tool {}
