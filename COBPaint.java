@@ -3,6 +3,7 @@ package com.cob.paint;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -18,14 +19,10 @@ import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.imageio.ImageIO;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import javax.swing.ImageIcon;
 import javax.swing.JApplet;
 import javax.swing.JButton;
@@ -34,49 +31,22 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
-import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-/*
-*
-*
-*	I KNOW THAT IT ISNT ORGANIZED VERY WELL, I WILL GET TO THAT!
-*
-*
-*/
 
 public class COBPaint extends JApplet {
 
 	private static final long serialVersionUID = 1L;
-
-	public Point getLocationScreen() {
-		if(this.isShowing()) {
-			return getLocationOnScreen();
-		}else{
-			return new Point(0,0);
-		}
-	}
 	
 	public void init() {
 		
 		setSize(1000,650);
 		
 		final Application app = new Application(this);
-		
-		try {
-			SwingUtilities.invokeAndWait(new Runnable() {
-				public void run() {
-					setContentPane(app);
-					
-				}
-			});
-		}catch(InvocationTargetException e) {
-			e.printStackTrace();
-		}catch(InterruptedException e1) {
-			e1.printStackTrace();
-		}
+		setContentPane(app);
+
 	}
 	
 }
@@ -85,7 +55,7 @@ class Application extends JPanel {
 	
 	private static final long serialVersionUID = 1L; // It gets mad if I dont put this
 
-	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (x,y)
+	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (w,h)
 
 	private int curR = 255; // White default color
 	private int curG = 255;
@@ -97,8 +67,6 @@ class Application extends JPanel {
 	
 	static int multiToolSides; // Variables for the multi-tool
 	static int multiToolRadius;
-
-	static String waveEquation; // For the wave tool
 	
 	JSlider redSlider;
 	JSlider greenSlider; // The sliders to select rgb color
@@ -118,11 +86,11 @@ class Application extends JPanel {
 	JButton lineButton;
 	JButton cursorButton;
 	JButton multiToolButton;
-	JButton waveToolButton;
+	JButton textToolButton;
+	JButton fountainPenButton;
 	
 	static JPanel canvas; // Where to draw on
 	
-	CursorTool cursor = new CursorTool();
 	PenTool pen = new PenTool();
 	RollerTool roller = new RollerTool();
 	BucketTool bucket = new BucketTool();
@@ -130,7 +98,8 @@ class Application extends JPanel {
 	LineTool line = new LineTool();
 	RectangleTool rect = new RectangleTool();
 	MultiTool multitool = new MultiTool();
-	WaveTool wavetool = new WaveTool();
+	TextTool text = new TextTool();
+	FountainPen fountain = new FountainPen();
 	
 	Color backgroundColor = new Color(238,238,238); // The default background color of the canvas
 	
@@ -141,8 +110,6 @@ class Application extends JPanel {
 	Point b;
 	
 	Point locationOnScreen; // The location of the window relative to the screen/monitor
-	
-	boolean isInCanvas; // Boolean to check if the mouse is in the canvas
 	
 	JApplet ap; // So I can get the main applet, to run tests
 	
@@ -160,11 +127,14 @@ class Application extends JPanel {
 	Image saveImg = toolkit.getImage("../save.png");
 	Image rectImage = toolkit.getImage("../rectangle.png");
 	Image undoImg = toolkit.getImage("../undo.png");
+	Image textImg = toolkit.getImage("../text.png");
+	Image fountainImg = toolkit.getImage("../fountain.png");
 
 	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
 	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
 	Cursor rollerCursor = toolkit.createCustomCursor(rollerCursorImg, new Point(this.getX(), this.getY()), "rollerCursor");
 	Cursor penCursor = toolkit.createCustomCursor(penCursorImg, new Point(this.getX(), this.getY()), "penCursor");
+	Cursor fountainCursor = toolkit.createCustomCursor(fountainImg, new Point(this.getX(), this.getY()), "fountainCursor");
 	
 	boolean triedToResizePenTool = false;
 	
@@ -201,12 +171,11 @@ class Application extends JPanel {
 		add(bucketButton);
 		add(undoButton);
 		add(eraserButton);
-		add(cursorButton);
 		add(lineButton);
 		add(canvas);
 		add(multiToolButton);
-		add(waveToolButton);
-		//askForNumberSides();
+		add(textToolButton);
+		add(fountainPenButton);
 	}
 	
 	static double halfPI = Math.PI/2;
@@ -252,33 +221,6 @@ class Application extends JPanel {
 		
 	}
 	
-	public static void askForWaveEquation() {
-
-		waveEquation = (String) JOptionPane.showInputDialog(canvas,
-		        "Enter your wave equation",
-		        "Wave Tool", JOptionPane.INFORMATION_MESSAGE,
-		        null,
-		        null,
-		        "[equation using x]");
-		
-	}
-	
-	  static int eval(String infix) {        
-	        ScriptEngineManager mgr = new ScriptEngineManager();
-	        ScriptEngine engine = mgr.getEngineByName("JavaScript");    
-	        String stringResult;
-	        try {
-	            stringResult = engine.eval(infix).toString();
-	            double doubleResult = Double.parseDouble(stringResult);
-	            int result = (int) doubleResult;        
-	            return result;
-	        } catch (ScriptException ex) {
-	            ex.printStackTrace();
-	        }
-	        return(1);
-
-	}
-	
 	
 	private void repaintIt(){
 		super.repaint();
@@ -313,11 +255,6 @@ class Application extends JPanel {
 		g.setColor(Color.black);
 		g.drawString("Hex Value: " + hexValue, 850, 617);
 		
-		// Draw the pen tool image
-
-		
-		// Draw the roller tool image
-		
 	}
 	
 
@@ -332,6 +269,10 @@ class Application extends JPanel {
 	
 	private String askForString(String message) {
 		return JOptionPane.showInputDialog(message);
+	}
+	
+	private int askForInt(String message) {
+		return Integer.parseInt(askForString(message));
 	}
 	
 	private String askForDirectory(String choosertitle) {
@@ -418,13 +359,6 @@ class Application extends JPanel {
 		}
 	};
 
-	ActionListener cursorButtonListener = new ActionListener() {
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			currentTool = cursor;
-		}
-	};
-
 	ActionListener lineButtonListener = new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
@@ -441,13 +375,6 @@ class Application extends JPanel {
 		}
 	};
 
-	ActionListener waveToolButtonListener = new ActionListener() {
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			currentTool = wavetool;
-			askForWaveEquation();
-		}
-	};
 	
 	ActionListener undoButtonListener = new ActionListener() {
 	 	@Override
@@ -460,6 +387,21 @@ class Application extends JPanel {
 	 	}
 	};
 	
+	ActionListener textToolListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = text;
+		}
+	};
+	
+	ActionListener fountainListener = new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = fountain;
+		}
+	};
+	
 	private void initButtons() { // Intitialize all the toolbar buttons
 
 		saveButton = but(32,32,7,7,saveImg,saveButtonListener,"Save to a file");
@@ -469,88 +411,84 @@ class Application extends JPanel {
 		rectangleButton = but(32,32,85+offset+27,7,rectangleImg,rectangleButtonListener,"Rectangle tool");
 		undoButton = but(32,32,85+offset+62,7,undoImg,undoButtonListener,"Undo");
 		eraserButton = but(32,32,85+offset+97,7,eraserImg,eraserButtonListener,"Eraser tool");
-		cursorButton = but(32,32,85+offset+132,7,eraserImg,cursorButtonListener,"Cursor tool");
-		lineButton = but(32,32,85+offset+167,7,lineToolImg,lineButtonListener,"Line tool");
-		multiToolButton = but(32,32,85+offset+202,7,multiToolImg,multiToolButtonListener,"Multi-tool");
-		waveToolButton = but(32,32,85+offset+247,7,multiToolImg,waveToolButtonListener,"Equation tool");
+		lineButton = but(32,32,85+offset+132,7,lineToolImg,lineButtonListener,"Line tool");
+		multiToolButton = but(32,32,85+offset+167,7,multiToolImg,multiToolButtonListener,"Multi-tool");
+		textToolButton = but(32,32,85+offset+202,7,textImg,textToolListener,"Text tool");
+		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
 		
 	}
 	
 
-	public void initSliders() {
-		redSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
-		greenSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
-		blueSlider = new JSlider(JSlider.VERTICAL, 0, 255, 255);
+	ChangeListener toolBrushSizeListener = new ChangeListener() {
+		@Override
+		public void stateChanged(ChangeEvent e) {
+			if(currentTool instanceof PenTool && !triedToResizePenTool) {
+				JOptionPane.showMessageDialog(
+					    canvas, "Cant change the pen tools brush size!",
+					    "ERROR",
+					    JOptionPane.ERROR_MESSAGE);
+				toolBrushSize.setValue(desiredBrushWidth);
+				triedToResizePenTool = true;
+				return;
+			}
+			int value = toolBrushSize.getValue();
+			desiredBrushWidth = value;
+		}
+	};
+	
+	ChangeListener redSliderListener = new ChangeListener() {
+		@Override
+		public void stateChanged(ChangeEvent e) {
+			curR = redSlider.getValue();
+			repaintIt();
+			redSlider.setToolTipText("Red Value: " + curR);
+		}
+	};
+	
+	ChangeListener greenSliderListener = new ChangeListener() {
+		@Override
+		public void stateChanged(ChangeEvent e) {
+			curG = greenSlider.getValue();
+			repaintIt();
+			greenSlider.setToolTipText("Green Value: " + curG);
+		}
+	};
+	
+	ChangeListener blueSliderListener = new ChangeListener() {
+		@Override
+		public void stateChanged(ChangeEvent e) {
+			curB = blueSlider.getValue();
+			repaintIt();
+			blueSlider.setToolTipText("Blue Value: " + curB);
+		}
+	};
+	
+	private JSlider slider(int type, int a, int b, int c, int x, int y, int w, int h, ChangeListener act) {
 		
-		toolBrushSize = new JSlider(JSlider.HORIZONTAL, 0, 200, 10);
-		toolBrushSize.setSize(300,30);
-		toolBrushSize.setLocation(695,10);
-		toolBrushSize.setMajorTickSpacing(10);
-		toolBrushSize.setMinorTickSpacing(1);
-		toolBrushSize.addChangeListener(new ChangeListener() {
+		JSlider retSlider = new JSlider(type,a,b,c);
+		retSlider.setSize(w,h);
+		retSlider.setLocation(x,y);
+		retSlider.setMajorTickSpacing(10);
+		retSlider.setMinorTickSpacing(1);
+		retSlider.addChangeListener(act);
+		return retSlider;
+		
+	}
+	
+	private JLabel label(String title, int type, int x, int y, int w, int h) {
+		JLabel retLabel = new JLabel(title, type);
+		retLabel.setSize(w,h);
+		retLabel.setLocation(x,y);
+		return retLabel;
+	}
 
-			@Override
-			public void stateChanged(ChangeEvent e) {
-				//if(!(currentTool instanceof PenTool) || !(currentTool instanceof BucketTool) || !(currentTool instanceof RollerTool)) {return;}
-				if(currentTool instanceof PenTool && !triedToResizePenTool) {
-					JOptionPane.showMessageDialog(
-						    canvas, "Cant change the pen tools brush size!",
-						    "ERROR",
-						    JOptionPane.ERROR_MESSAGE);
-					toolBrushSize.setValue(desiredBrushWidth);
-					triedToResizePenTool = true;
-					return;
-				}
-				int value = toolBrushSize.getValue();
-				desiredBrushWidth = value;
-			}
-			
-		});
-		toolBrushSizeLbl = new JLabel("Brush Size: ", JLabel.CENTER);
-		toolBrushSizeLbl.setSize(75,25);
-		toolBrushSizeLbl.setLocation(615, 13);
+	public void initSliders() {
+		toolBrushSize = slider(JSlider.HORIZONTAL, 0, 200, 10, 695, 10, 300, 30, toolBrushSizeListener);
+		redSlider = slider(JSlider.VERTICAL, 0, 255, 255, 850, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, redSliderListener);
+		greenSlider = slider(JSlider.VERTICAL, 0, 255, 255, 900, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, greenSliderListener);
+		blueSlider = slider(JSlider.VERTICAL, 0, 255, 255, 950, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, blueSliderListener);
 		
-		redSlider.setSize(SLIDER_DIMENSION);//setting dimensions for red slider
-		greenSlider.setSize(SLIDER_DIMENSION);//setting dimensions for green slider
-		blueSlider.setSize(SLIDER_DIMENSION);// setting dimensions for blue slider
-		
-		redSlider.setLocation(850, 55);//setting location for red slider
-		greenSlider.setLocation(900, 55);//setting locations for green slider 
-		blueSlider.setLocation(950, 55);//setting location for blue slider
-		
-		redSlider.setMajorTickSpacing(25);//setting the tick spacing for red slider
-		greenSlider.setMajorTickSpacing(25);//seting tick for green slider
-		blueSlider.setMajorTickSpacing(25);//setting tick for blue slider
-		
-		redSlider.setMinorTickSpacing(5);//setting the minor tick for red
-		greenSlider.setMinorTickSpacing(5);//setting the minor tick for green
-		blueSlider.setMinorTickSpacing(5);//setting the minor tick spacing for blue
-		
-		redSlider.setPaintTicks(true);//setting the ticks for paint
-		greenSlider.setPaintTicks(true);
-		blueSlider.setPaintTicks(true);
-		
-		redSlider.addChangeListener(new ChangeListener() {
-			public void stateChanged(ChangeEvent e) {
-				curR = redSlider.getValue();
-				repaintIt();
-				redSlider.setToolTipText("Red Value: " + curR);
-			}
-		});
-		greenSlider.addChangeListener(new ChangeListener() {
-			public void stateChanged(ChangeEvent e) {
-				curG = greenSlider.getValue();
-				repaintIt();
-				greenSlider.setToolTipText("Green Value: " + curG);
-			}
-		});
-		blueSlider.addChangeListener(new ChangeListener() {
-			public void stateChanged(ChangeEvent e) {
-				curB = blueSlider.getValue();
-				repaintIt();
-				blueSlider.setToolTipText("Blue Value: " + curB);
-			}
-		});
+		toolBrushSizeLbl = label("Brush Size: ", JLabel.CENTER, 615, 13, 75, 25);
 		
 	}
 	
@@ -565,6 +503,10 @@ class Application extends JPanel {
 			this.setCursor(eraserCursor);
 		}else if(currentTool instanceof RectangleTool) {
 			this.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+		}else if(currentTool instanceof TextTool) {
+			this.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+		}else if(currentTool instanceof FountainPen) {
+			this.setCursor(fountainCursor);
 		}
 	}
 	
@@ -620,6 +562,7 @@ class Application extends JPanel {
 						newX = oldX;
 						newY = oldY;
 						repaintIt();
+						
 					}else if(currentTool instanceof RollerTool) {
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						
@@ -658,7 +601,14 @@ class Application extends JPanel {
 						lineY2 = b.y-100;
 						
 						repaintIt();
-					}else if(currentTool instanceof WaveTool) {
+					}else if(currentTool instanceof FountainPen) {
+						
+						bufferGraphics.setColor(new Color(curR, curG, curB));
+						//bufferGraphics.fillRect(oldX, oldY-75, desiredBrushWidth, desiredBrushWidth);
+						bufferGraphics.drawLine(oldX+20,(oldY+15)-75,newX-20,(newY-15)-75);
+						newX = oldX;
+						newY = oldY;
+						repaintIt();
 						
 					}
 				}
@@ -701,24 +651,23 @@ class Application extends JPanel {
 					bufferGraphics.setColor(new Color(curR, curG, curB));
 					fillRegularPolygon(bufferGraphics, b.x-locationOnScreen.x, b.y-75-locationOnScreen.y, multiToolRadius, multiToolSides);
 					repaintIt();
-				}else if(currentTool instanceof WaveTool) {
-					bufferGraphics.setColor(Color.red);
-					int oldX = -10000;
-					int oldY = -10000;
-					locationOnScreen = ap.getLocationOnScreen();
-					System.out.println(locationOnScreen);
-			       for(int x = -500; x < 500; x++) {
-			    	   bufferGraphics.drawLine(x+(b.x), (int)(Math.pow(x,2) * (.05)), oldX+(b.x), (int)(oldY*(.05)));
-			    	   oldX = x;
-			    	   oldY = (int)Math.pow(x, 2);
-			    	   repaintIt();
-			       }
+				}else if(currentTool instanceof TextTool) {
+					String txt = askForString("What do you want it to say?");
+					if(txt == null) return;
+					int size = askForInt("How large should the text be?");
+					
+					
+					Font toUse = new Font("Jokerman", Font.PLAIN, size);
+					bufferGraphics.setFont(toUse);
+					bufferGraphics.setColor(new Color(curR, curG, curB));
+					bufferGraphics.drawString(txt, b.x, b.y-75);
+					repaintIt();
+					
 				}
 			}
 
 			@Override
 			public void mouseEntered(MouseEvent arg0) {
-				isInCanvas = true;
 				resetCursor();
 			}
 
@@ -726,7 +675,6 @@ class Application extends JPanel {
 			public void mouseExited(MouseEvent arg0) {
 				setDefaultCursor();
 				pressingDown = false;
-				isInCanvas = false;
 			}
 
 			@Override
@@ -759,6 +707,10 @@ class Canvas extends JPanel {
 	
 	private static final long serialVersionUID = 1L;
 	private Color backgroundColor = new Color(255,255,255);
+	
+	public Canvas() {
+		setDoubleBuffered(false);
+	}
 
 	public void setTheBackgroundColor(Color c) {
 		backgroundColor = c;
@@ -783,11 +735,11 @@ class Canvas extends JPanel {
 
 class Tool {}
 class PenTool extends Tool {}
+class FountainPen extends Tool {}
 class RollerTool extends Tool {}
-class CursorTool extends Tool {}
 class BucketTool extends Tool {}
 class RectangleTool extends Tool {}
 class LineTool extends Tool {}
 class EraserTool extends Tool {}
 class MultiTool extends Tool {}
-class WaveTool extends Tool {}
+class TextTool extends Tool {}
