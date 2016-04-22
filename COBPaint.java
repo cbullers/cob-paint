@@ -57,9 +57,8 @@ class Application extends JPanel {
 
 	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (w,h)
 
-	private int curR = 255; // White default color
-	private int curG = 255;
-	private int curB = 255;
+	private int curR, curG, curB;
+	curR = curG = curB = 255; // white default color
 	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>(); // Store the bufferedimages for undo
 
