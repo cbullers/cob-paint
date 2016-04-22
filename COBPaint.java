@@ -88,6 +88,7 @@ class Application extends JPanel {
 	JButton multiToolButton;
 	JButton textToolButton;
 	JButton fountainPenButton;
+	JButton openButton;
 	
 	static JPanel canvas; // Where to draw on
 	
@@ -100,6 +101,7 @@ class Application extends JPanel {
 	MultiTool multitool = new MultiTool();
 	TextTool text = new TextTool();
 	FountainPen fountain = new FountainPen();
+	OpenTool open = new OpenTool();
 	
 	Color backgroundColor = new Color(238,238,238); // The default background color of the canvas
 	
@@ -117,6 +119,8 @@ class Application extends JPanel {
 	
 	Toolkit toolkit = Toolkit.getDefaultToolkit(); // So I can get the images easier
 
+	Image openToolImg;
+	
 	Image penCursorImg = toolkit.getImage("../pencil.png");
 	Image rollerCursorImg = toolkit.getImage("../roller.png");
 	Image bucketCursorImg = toolkit.getImage("../bucket.png");
@@ -129,6 +133,7 @@ class Application extends JPanel {
 	Image undoImg = toolkit.getImage("../undo.png");
 	Image textImg = toolkit.getImage("../text.png");
 	Image fountainImg = toolkit.getImage("../fountain.png");
+	Image openImg = toolkit.getImage("../open.png");
 
 	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
 	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
@@ -176,6 +181,7 @@ class Application extends JPanel {
 		add(multiToolButton);
 		add(textToolButton);
 		add(fountainPenButton);
+		add(openButton);
 	}
 	
 	static double halfPI = Math.PI/2;
@@ -292,6 +298,24 @@ class Application extends JPanel {
 	    	return "No Selection";
 	     }
 	}
+	
+	private String askForFile(String title) {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new File("."));
+		chooser.setDialogTitle(title);
+		chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		if(chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+			return chooser.getSelectedFile().getAbsolutePath().toString();
+		}else{
+			return "No Selection";
+		}
+	}
+	
+	private void askForImage() {
+		String file = askForFile("What file?");
+		if(file.equals("No Selection")) return;
+		openToolImg = toolkit.getImage(file);
+	}
 
 	private JButton but(int w, int h, int x, int y, Image icon, ActionListener a, String toolTip) {
 		JButton retButton = new JButton();
@@ -379,6 +403,7 @@ class Application extends JPanel {
 	ActionListener undoButtonListener = new ActionListener() {
 	 	@Override
 	 	public void actionPerformed(ActionEvent arg0) {
+	 		if(undoImages.get(undoImages.size()-1) == null) return;
 	 		canvasImage = undoImages.get(undoImages.size()-1);
 	 		undoImages.remove(undoImages.size()-1);
 	 		bufferGraphics = canvasImage.createGraphics();
@@ -402,6 +427,15 @@ class Application extends JPanel {
 		}
 	};
 	
+	ActionListener openListener = new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = open;
+			askForImage();
+		}
+	};
+	
 	private void initButtons() { // Intitialize all the toolbar buttons
 
 		saveButton = but(32,32,7,7,saveImg,saveButtonListener,"Save to a file");
@@ -415,6 +449,7 @@ class Application extends JPanel {
 		multiToolButton = but(32,32,85+offset+167,7,multiToolImg,multiToolButtonListener,"Multi-tool");
 		textToolButton = but(32,32,85+offset+202,7,textImg,textToolListener,"Text tool");
 		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
+		openButton = but(32,32,85+offset+272,7,openImg,openListener,"Open image");
 		
 	}
 	
@@ -507,6 +542,8 @@ class Application extends JPanel {
 			this.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
 		}else if(currentTool instanceof FountainPen) {
 			this.setCursor(fountainCursor);
+		}else if(currentTool instanceof OpenTool) {
+			this.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 		}
 	}
 	
@@ -522,12 +559,27 @@ class Application extends JPanel {
 		g.fillRect(x1,y1,width,height);
 	}
 	
+	private static void fillImageRect(Graphics g, Image i,int x1, int y1, int x2, int y2) {
+		// Resize the image
+		//i = i.getScaledInstance(x1+x2, y1+y2, Image.SCALE_DEFAULT);
+		
+		int temp;
+		if (x1 > x2)
+			{ temp = x1; x1 = x2; x2 = temp; }
+		if (y1 > y2)
+			{ temp = y1; y1 = y2; y2 = temp; }
+		int width  = x2 - x1 + 1;
+		int height = y2 - y1 + 1;
+		g.drawImage(i,x1,y1,width,height,null);
+	}
+	
 	private void setDefaultCursor() {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
 	
 	int newX, newY, oldX, oldY;
 	Rectangle rectangle;
+	Rectangle openedImage;
 	int lineX, lineY, lineX2, lineY2;
 	int initX, initY;
 	private void canvasLogic(final int initialX, final int initialY) {
@@ -558,7 +610,8 @@ class Application extends JPanel {
 					if(currentTool instanceof PenTool) {
 						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						//bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
 						newX = oldX;
 						newY = oldY;
 						repaintIt();
@@ -610,6 +663,11 @@ class Application extends JPanel {
 						newY = oldY;
 						repaintIt();
 						
+					}else if(currentTool instanceof OpenTool) {
+						if(openImg == null) return;
+						fillImageRect(getGraphics(), openToolImg, initialX, initialY, b.x, b.y-75);
+						openedImage = new Rectangle(initialX, initialY, b.x, b.y-75);
+						repaintIt();
 					}
 				}
 				
@@ -625,6 +683,10 @@ class Application extends JPanel {
 					bufferGraphics.drawLine(lineX, lineY, lineX2, lineY2);
 					repaintIt();
 					
+				}else if(currentTool instanceof OpenTool) {
+					if(openedImage == null) return;
+					fillImageRect(bufferGraphics, openToolImg, openedImage.x+50, openedImage.y-50, openedImage.width, openedImage.height);
+					repaintIt();
 				}
 				
 			}
@@ -657,7 +719,7 @@ class Application extends JPanel {
 					int size = askForInt("How large should the text be?");
 					
 					
-					Font toUse = new Font("Jokerman", Font.PLAIN, size);
+					Font toUse = new Font("Trebuchet MS", Font.PLAIN, size);
 					bufferGraphics.setFont(toUse);
 					bufferGraphics.setColor(new Color(curR, curG, curB));
 					bufferGraphics.drawString(txt, b.x, b.y-75);
@@ -743,3 +805,4 @@ class LineTool extends Tool {}
 class EraserTool extends Tool {}
 class MultiTool extends Tool {}
 class TextTool extends Tool {}
+class OpenTool extends Tool {}
