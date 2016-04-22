@@ -57,8 +57,7 @@ class Application extends JPanel {
 
 	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (w,h)
 
-	private int curR, curG, curB;
-	curR = curG = curB = 255; // white default color
+	private int curR, curG, curB = curG = curR = 255; // white
 	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>(); // Store the bufferedimages for undo
 
@@ -609,8 +608,8 @@ class Application extends JPanel {
 					if(currentTool instanceof PenTool) {
 						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						//bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
-						bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
+						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						//bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
 						newX = oldX;
 						newY = oldY;
 						repaintIt();
