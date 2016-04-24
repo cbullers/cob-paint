@@ -19,6 +19,11 @@ import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,7 +62,9 @@ class Application extends JPanel {
 
 	private static Dimension SLIDER_DIMENSION = new Dimension(30,500); // How big the RGB sliders are (w,h)
 
-	private int curR, curG, curB = curG = curR = 255; // white
+	private int curR = 255; // White default color
+	private int curG = 255;
+	private int curB = 255;
 	
 	List<BufferedImage> undoImages = new ArrayList<BufferedImage>(); // Store the bufferedimages for undo
 
@@ -87,6 +94,7 @@ class Application extends JPanel {
 	JButton textToolButton;
 	JButton fountainPenButton;
 	JButton openButton;
+	JButton friendDraw;
 	
 	static JPanel canvas; // Where to draw on
 	
@@ -141,6 +149,70 @@ class Application extends JPanel {
 	
 	boolean triedToResizePenTool = false;
 	
+	// Drawing with friends variables
+	boolean drawingWithFriend;
+	String friendIP;
+	ServerSocket serverSocket;
+	Socket socket; // Just for listening purposes
+	Socket friend; // This will be where data will be sent to and fro
+	int DEFAULT_PORT = 65;
+	ObjectOutputStream out; // When we want to send to our friend
+	ObjectInputStream in; // When we receive from our friend
+	
+	private void defineServerSocket() {
+		try{
+			serverSocket = new ServerSocket(DEFAULT_PORT);
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void listenForIncomingConnections() {
+		new Thread(new Runnable() {
+			public void run() {
+				while(true) {
+					try {
+						socket = serverSocket.accept();
+						if(socket==null) continue;
+						if(askForString("INCOMING REQUEST TO PAINT FROM " + socket.getInetAddress().toString() + " IF YOU WISH TO PAINT TYPE YES, IF NOT, TYPE NO") == "NO") continue;
+						friend = socket;
+						drawingWithFriend = true;
+						out = new ObjectOutputStream(friend.getOutputStream());
+						in = new ObjectInputStream(friend.getInputStream());
+						break;
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}).start();
+	}
+	
+	private void listenForFriendDrawing() {
+		new Thread(new Runnable() {
+			public void run() {
+				while(true) {
+					if(!drawingWithFriend) continue;
+					DrawingInformation d = null;
+					
+					try {
+						d = (DrawingInformation) in.readObject();
+					} catch (ClassNotFoundException | IOException e) {
+						e.printStackTrace();
+					}
+					
+					if(d == null) continue;
+					
+					if(d.currentTool instanceof PenTool) {
+						bufferGraphics.setColor(d.color);
+						bufferGraphics.drawLine(d.initialX, d.initialY, d.mouseX, d.mouseY);
+					}
+					
+				}
+			}
+		});
+	}
+	
 	//debug
 	int offset = 35;
 	
@@ -159,6 +231,9 @@ class Application extends JPanel {
 		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
 		bufferGraphics = (Graphics)canvasImage.createGraphics();
 		
+		defineServerSocket();
+		listenForIncomingConnections();
+		listenForFriendDrawing();
 	}
 	
 	private void addStuff() {
@@ -180,6 +255,7 @@ class Application extends JPanel {
 		add(textToolButton);
 		add(fountainPenButton);
 		add(openButton);
+		add(friendDraw);
 	}
 	
 	static double halfPI = Math.PI/2;
@@ -309,6 +385,10 @@ class Application extends JPanel {
 		}
 	}
 	
+	private void askForFriendsIP() {
+		friendIP = askForString("Your friend's IP or hostname");
+	}
+	
 	private void askForImage() {
 		String file = askForFile("What file?");
 		if(file.equals("No Selection")) return;
@@ -434,6 +514,21 @@ class Application extends JPanel {
 		}
 	};
 	
+	ActionListener friendDrawListener = new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			askForFriendsIP();
+			try {
+				friend = new Socket(friendIP, DEFAULT_PORT);
+				out = new ObjectOutputStream(friend.getOutputStream());
+				in = new ObjectInputStream(friend.getInputStream());
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		}
+	};
+	
 	private void initButtons() { // Intitialize all the toolbar buttons
 
 		saveButton = but(32,32,7,7,saveImg,saveButtonListener,"Save to a file");
@@ -448,6 +543,7 @@ class Application extends JPanel {
 		textToolButton = but(32,32,85+offset+202,7,textImg,textToolListener,"Text tool");
 		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
 		openButton = but(32,32,85+offset+272,7,openImg,openListener,"Open image");
+		friendDraw = but(32,32,85+offset+304,7,openImg,friendDrawListener,"Draw with friends!");
 		
 	}
 	
@@ -604,12 +700,23 @@ class Application extends JPanel {
 					
 					oldX = b.x;
 					oldY = b.y;
+					
+					if(drawingWithFriend) {
+						
+						try {
+							out.writeObject(new DrawingInformation(currentTool, initialX, initialY, b.x, b.y, new Color(curR, curG, curB)));
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
+					}
 
 					if(currentTool instanceof PenTool) {
 						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
-						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
-						//bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
+						//bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
 						newX = oldX;
 						newY = oldY;
 						repaintIt();
@@ -623,7 +730,6 @@ class Application extends JPanel {
 						bufferGraphics.fillOval(b.x-(d), b.y-75, dotSize, dotSize);
 						bufferGraphics.fillOval(b.x+(d), b.y-75, dotSize, dotSize);
 						bufferGraphics.fillOval(b.x, b.y-75, dotSize, dotSize);
-						
 						
 						repaintIt();
 					}else if(currentTool instanceof RectangleTool) {
@@ -804,3 +910,27 @@ class EraserTool extends Tool {}
 class MultiTool extends Tool {}
 class TextTool extends Tool {}
 class OpenTool extends Tool {}
+
+class DrawingInformation implements Serializable {
+
+	/*
+	 * This class will be sent to the ServerSocket, or the socket, depending
+	 * on the connection.
+	 */
+	
+	private static final long serialVersionUID = 1L;
+	
+	Tool currentTool;
+	int initialX, initialY, mouseX, mouseY;
+	Color color;
+	
+	public DrawingInformation(Tool currentTool, int initialX, int initialY, int mouseX, int mouseY, Color color) {
+		this.currentTool = currentTool;
+		this.initialX = initialX;
+		this.initialY = initialY;
+		this.mouseX = mouseX;
+		this.mouseY = mouseY;
+		this.color = color;
+	}
+	
+}
