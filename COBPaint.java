@@ -26,6 +26,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -174,11 +175,11 @@ class Application extends JPanel {
 					try {
 						socket = serverSocket.accept();
 						if(socket==null) continue;
-						if(askForString("INCOMING REQUEST TO PAINT FROM " + socket.getInetAddress().toString() + " IF YOU WISH TO PAINT TYPE YES, IF NOT, TYPE NO") == "NO") continue;
+						if(askForString("INCOMING REQUEST TO PAINT FROM " + socket.getInetAddress().toString().substring(1) + " IF YOU WISH TO PAINT TYPE YES, IF NOT, TYPE NO") == "NO") continue;
 						friend = socket;
-						drawingWithFriend = true;
 						out = new ObjectOutputStream(friend.getOutputStream());
 						in = new ObjectInputStream(friend.getInputStream());
+						drawingWithFriend = true;
 						break;
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -192,25 +193,24 @@ class Application extends JPanel {
 		new Thread(new Runnable() {
 			public void run() {
 				while(true) {
-					if(!drawingWithFriend) continue;
+					if(!drawingWithFriend || in == null || out == null) continue;
 					DrawingInformation d = null;
 					
 					try {
-						d = (DrawingInformation) in.readObject();
+						if(!(Objects.equals(in.readObject(), null))) {
+							d = (DrawingInformation)in.readObject();
+							if(d.currentTool instanceof PenTool) {
+								bufferGraphics.setColor(d.color);
+								bufferGraphics.drawLine(d.initialX, d.initialY, d.mouseX, d.mouseY);
+							}
+						}
 					} catch (ClassNotFoundException | IOException e) {
 						e.printStackTrace();
 					}
 					
-					if(d == null) continue;
-					
-					if(d.currentTool instanceof PenTool) {
-						bufferGraphics.setColor(d.color);
-						bufferGraphics.drawLine(d.initialX, d.initialY, d.mouseX, d.mouseY);
-					}
-					
 				}
 			}
-		});
+		}).start();
 	}
 	
 	//debug
@@ -682,6 +682,22 @@ class Application extends JPanel {
 		
 		newX = b.x - locationOnScreen.x;
 		newY = b.y - locationOnScreen.y + 50;
+		
+		new Thread(new Runnable() {
+			public void run() {
+				while(true) {
+					if(drawingWithFriend) {
+						
+						try {
+							out.writeObject(new DrawingInformation(currentTool, initialX, initialY, b.x, b.y, new Color(curR, curG, curB)));
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						
+					}
+				}
+			}
+		}).start();
 
 		Thread t = new Thread(new Runnable(){
 			public void run() {
@@ -700,17 +716,6 @@ class Application extends JPanel {
 					
 					oldX = b.x;
 					oldY = b.y;
-					
-					if(drawingWithFriend) {
-						
-						try {
-							out.writeObject(new DrawingInformation(currentTool, initialX, initialY, b.x, b.y, new Color(curR, curG, curB)));
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						
-					}
 
 					if(currentTool instanceof PenTool) {
 						
@@ -899,17 +904,17 @@ class Canvas extends JPanel {
 	
 }
 
-class Tool {}
-class PenTool extends Tool {}
-class FountainPen extends Tool {}
-class RollerTool extends Tool {}
-class BucketTool extends Tool {}
-class RectangleTool extends Tool {}
-class LineTool extends Tool {}
-class EraserTool extends Tool {}
-class MultiTool extends Tool {}
-class TextTool extends Tool {}
-class OpenTool extends Tool {}
+class Tool implements Serializable {private static final long serialVersionUID = 1L;}
+class PenTool extends Tool {private static final long serialVersionUID = 1L;}
+class FountainPen extends Tool {private static final long serialVersionUID = 1L;}
+class RollerTool extends Tool {private static final long serialVersionUID = 1L;}
+class BucketTool extends Tool {private static final long serialVersionUID = 1L;}
+class RectangleTool extends Tool {private static final long serialVersionUID = 1L;}
+class LineTool extends Tool {private static final long serialVersionUID = 1L;}
+class EraserTool extends Tool {private static final long serialVersionUID = 1L;}
+class MultiTool extends Tool {private static final long serialVersionUID = 1L;}
+class TextTool extends Tool {private static final long serialVersionUID = 1L;}
+class OpenTool extends Tool {private static final long serialVersionUID = 1L;}
 
 class DrawingInformation implements Serializable {
 
