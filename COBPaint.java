@@ -104,6 +104,7 @@ class Application extends JPanel {
 	JButton fountainPenButton;
 	JButton openButton;
 	JButton friendDraw;
+	JButton ovalButton;
 	
 	static JPanel canvas; // Where to draw on
 	
@@ -117,6 +118,7 @@ class Application extends JPanel {
 	TextTool text = new TextTool();
 	FountainPen fountain = new FountainPen();
 	OpenTool open = new OpenTool();
+	OvalTool oval = new OvalTool();
 	
 	Color backgroundColor = new Color(238,238,238); // The default background color of the canvas
 	
@@ -232,9 +234,9 @@ class Application extends JPanel {
 	boolean pressingDown = false;
 	
 	public Application(final JFrame a) {
-		setSize(1000,650);
-		setLayout(null);
-		initSliders();
+		setSize(1000,650);//setting size
+		setLayout(null);//nullifiying layout
+		initSliders();//initializing sliders
 		initCanvas();
 		initButtons();
 		addStuff();
@@ -250,7 +252,6 @@ class Application extends JPanel {
 		try {
 			listenForFriendDrawing();
 		} catch (EOFException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -275,6 +276,7 @@ class Application extends JPanel {
 		add(fountainPenButton);
 		add(openButton);
 		add(friendDraw);
+		add(ovalButton);
 	}
 	
 	static double halfPI = Math.PI/2;
@@ -366,12 +368,12 @@ class Application extends JPanel {
 		return bi;
 	}
 	
-	private String askForString(String message) {
+	private String askForString(String message) {//string message
 		return JOptionPane.showInputDialog(message);
 	}
 	
 	private int askForInt(String message) {
-		return Integer.parseInt(askForString(message));
+		return Integer.parseInt(askForString(message));//asking for string
 	}
 	
 	private String askForDirectory(String choosertitle) {
@@ -445,9 +447,9 @@ class Application extends JPanel {
 		}
 	};
 
-	ActionListener penButtonListener = new ActionListener() {
+	ActionListener penButtonListener = new ActionListener() {//pen button listener
 		@Override
-		public void actionPerformed(ActionEvent a) {
+		public void actionPerformed(ActionEvent a) {//when action is performed
 			currentTool = pen;
 		}
 	};
@@ -459,35 +461,35 @@ class Application extends JPanel {
 		}
 	};
 
-	ActionListener bucketButtonListener = new ActionListener() {
+	ActionListener bucketButtonListener = new ActionListener() {// bucket button listener
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			currentTool = bucket;
 		}
 	};
 
-	ActionListener rectangleButtonListener = new ActionListener() {
+	ActionListener rectangleButtonListener = new ActionListener() {//rectangle button listener
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			currentTool = rect;
 		}
 	};
 
-	ActionListener eraserButtonListener = new ActionListener() {
+	ActionListener eraserButtonListener = new ActionListener() {//eraser button listener
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			currentTool = eraser;
 		}
 	};
 
-	ActionListener lineButtonListener = new ActionListener() {
+	ActionListener lineButtonListener = new ActionListener() {//line button listener
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			currentTool = line;
 		}
 	};
 
-	ActionListener multiToolButtonListener = new ActionListener() {
+	ActionListener multiToolButtonListener = new ActionListener() {//multitoolbuttonlistener
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			currentTool = multitool;
@@ -548,6 +550,13 @@ class Application extends JPanel {
 		}
 	};
 	
+	ActionListener ovalButListener = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent arg0) {
+			currentTool = oval;
+		}
+	};
+	
 	private void initButtons() { // Intitialize all the toolbar buttons
 
 		saveButton = but(32,32,7,7,saveImg,saveButtonListener,"Save to a file");
@@ -563,6 +572,7 @@ class Application extends JPanel {
 		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
 		openButton = but(32,32,85+offset+272,7,openImg,openListener,"Open image");
 		friendDraw = but(32,32,85+offset+304,7,openImg,friendDrawListener,"Draw with friends!");
+		ovalButton = but(32,32,85+offset+337,7,openImg,ovalButListener,"Oval tool");
 		
 	}
 	
@@ -584,7 +594,7 @@ class Application extends JPanel {
 		}
 	};
 	
-	ChangeListener redSliderListener = new ChangeListener() {
+	ChangeListener redSliderListener = new ChangeListener() {//redslider listener
 		@Override
 		public void stateChanged(ChangeEvent e) {
 			curR = redSlider.getValue();
@@ -593,7 +603,7 @@ class Application extends JPanel {
 		}
 	};
 	
-	ChangeListener greenSliderListener = new ChangeListener() {
+	ChangeListener greenSliderListener = new ChangeListener() {//greenslider listener
 		@Override
 		public void stateChanged(ChangeEvent e) {
 			curG = greenSlider.getValue();
@@ -602,7 +612,7 @@ class Application extends JPanel {
 		}
 	};
 	
-	ChangeListener blueSliderListener = new ChangeListener() {
+	ChangeListener blueSliderListener = new ChangeListener() {//blue slider listener
 		@Override
 		public void stateChanged(ChangeEvent e) {
 			curB = blueSlider.getValue();
@@ -686,6 +696,13 @@ class Application extends JPanel {
 		g.drawImage(i,x1,y1,width,height,null);
 	}
 	
+	public static void fillOval(Graphics g, int centerX, int centerY, int hRadius, int vRadius)
+	{
+		int hDiameter = 2 * hRadius;
+		int vDiameter = 2 * vRadius;
+		g.fillOval(centerX-hRadius, centerY-vRadius, hDiameter, vDiameter);
+	}
+	
 	private void setDefaultCursor() {
 		this.setCursor(Cursor.getDefaultCursor());
 	}
@@ -693,14 +710,15 @@ class Application extends JPanel {
 	int newX, newY, oldX, oldY;
 	Rectangle rectangle;
 	Rectangle openedImage;
+	Rectangle ovalRect; // yes
 	int lineX, lineY, lineX2, lineY2;
 	int initX, initY;
 	private void canvasLogic(final int initialX, final int initialY) {
 
 		locationOnScreen = ap.getLocationOnScreen();
 		
-		newX = b.x - locationOnScreen.x;
-		newY = b.y - locationOnScreen.y + 50;
+		newX = b.x - locationOnScreen.x - 5;
+		newY = b.y - locationOnScreen.y+25;
 
 		Thread t = new Thread(new Runnable(){
 			public void run() {
@@ -714,8 +732,8 @@ class Application extends JPanel {
 					b.x -= locationOnScreen.x;
 					b.y -= locationOnScreen.y;
 					
-					//b.x-=50;
-					b.y+=50;
+					b.x-=5;
+					b.y+=25;
 					
 					oldX = b.x;
 					oldY = b.y;
@@ -733,6 +751,11 @@ class Application extends JPanel {
 						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
+						System.out.println(oldX);
+						System.out.println(oldY-75);
+						System.out.println(newX);
+						System.out.println(newY-50);
+						System.out.println();
 						//bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
 						newX = oldX;
 						newY = oldY;
@@ -750,7 +773,7 @@ class Application extends JPanel {
 						
 						repaintIt();
 					}else if(currentTool instanceof RectangleTool) {
-						Rectangle rekt = new Rectangle(initialX, initialY, b.x-initialX, b.y-initialY-50);
+						Rectangle rekt = new Rectangle(initialX-10, initialY-30, b.x-initialX+5, b.y-initialY-25);
 						
 						getGraphics().setColor(new Color(255,255,255));
 						fillRectangle(getGraphics(), (int)rekt.getX(), (int)rekt.getY(), (int)(rekt.getX()+rekt.getWidth()), (int)(rekt.getY()+rekt.getHeight()));
@@ -758,6 +781,15 @@ class Application extends JPanel {
 						rectangle = rekt;
 						
 						repaintIt();
+					}else if(currentTool instanceof OvalTool) {
+						
+						Rectangle ovalR = new Rectangle(initialX, initialY, b.y-initialX, b.y-initialY);
+						
+						getGraphics().fillOval((int)ovalR.getX(), (int)ovalR.getY(), (int)ovalR.getWidth(), (int)ovalR.getHeight());
+						repaintIt();
+						
+						ovalRect = ovalR;
+						
 					}else if(currentTool instanceof EraserTool) {
 						
 						bufferGraphics.setColor(backgroundColor);
@@ -808,6 +840,9 @@ class Application extends JPanel {
 					if(openedImage == null) return;
 					fillImageRect(bufferGraphics, openToolImg, openedImage.x+50, openedImage.y-50, openedImage.width, openedImage.height);
 					repaintIt();
+				}else if(currentTool instanceof OvalTool) {
+					bufferGraphics.setColor(new Color(curR, curG, curB));
+					fillOval(bufferGraphics, (int)ovalRect.getX(), (int)ovalRect.getY(), (int)ovalRect.getWidth(), (int)ovalRect.getHeight());
 				}
 				
 			}
@@ -839,7 +874,6 @@ class Application extends JPanel {
 					if(txt == null) return;
 					int size = askForInt("How large should the text be?");
 					
-					
 					Font toUse = new Font("Trebuchet MS", Font.PLAIN, size);
 					bufferGraphics.setFont(toUse);
 					bufferGraphics.setColor(new Color(curR, curG, curB));
@@ -863,7 +897,7 @@ class Application extends JPanel {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				
-				undoImages.add(createImage(canvas));
+				undoImages.add(createImage(canvas));//creating image canvas
 				
 				pressingDown = true;
 				
@@ -871,7 +905,7 @@ class Application extends JPanel {
 				b = p.getLocation();
 				locationOnScreen = ap.getLocationOnScreen();
 				
-				canvasLogic(b.x-locationOnScreen.x, b.y-locationOnScreen.y);
+				canvasLogic(b.x-locationOnScreen.x, (b.y-locationOnScreen.y));
 			}
 
 
@@ -895,15 +929,15 @@ class Canvas extends JPanel {
 		setDoubleBuffered(false);
 	}
 
-	public void setTheBackgroundColor(Color c) {
+	public void setTheBackgroundColor(Color c) {//setting the backround color
 		backgroundColor = c;
 	}
 	
-	public Color getTheBackgroundColor() {
+	public Color getTheBackgroundColor() {//getting the backround color
 		return backgroundColor;
 	}
 	
-	public void repaintCanvas() {
+	public void repaintCanvas() {//repainting canvas
 		this.repaint();
 	}
 	
@@ -927,6 +961,7 @@ class EraserTool extends Tool {private static final long serialVersionUID = 1L;}
 class MultiTool extends Tool {private static final long serialVersionUID = 1L;}
 class TextTool extends Tool {private static final long serialVersionUID = 1L;}
 class OpenTool extends Tool {private static final long serialVersionUID = 1L;}
+class OvalTool extends Tool {private static final long serialVersionUID = 1L;}
 
 class DrawingInformation implements Serializable {
 
