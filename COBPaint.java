@@ -1,5 +1,6 @@
 package com.cob.paint;
 
+import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -11,6 +12,7 @@ import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.PointerInfo;
 import java.awt.Rectangle;
+import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -99,8 +101,8 @@ class Application extends JPanel {
 	JButton textToolButton;
 	JButton fountainPenButton;
 	JButton openButton;
-	JButton friendDraw;
 	JButton ovalButton;
+	JButton dropperButton;
 	
 	static JPanel canvas; // Where to draw on
 	
@@ -115,6 +117,7 @@ class Application extends JPanel {
 	FountainPen fountain = new FountainPen();
 	OpenTool open = new OpenTool();
 	OvalTool oval = new OvalTool();
+	DropperTool dropper = new DropperTool();
 	
 	Color backgroundColor = new Color(238,238,238); // The default background color of the canvas
 	
@@ -147,14 +150,17 @@ class Application extends JPanel {
 	Image rectImage = toolkit.getImage("rectangle.png");
 	Image undoImg = toolkit.getImage("undo.png");
 	Image textImg = toolkit.getImage("text.png");
-	Image fountainImg = toolkit.getImage(".fountain.png");
+	Image fountainImg = toolkit.getImage("fountain.png");
 	Image openImg = toolkit.getImage("open.png");
+	Image ovalImg = toolkit.getImage("oval.png");
+	Image dropperImg = toolkit.getImage("dropper.png");
 
 	Cursor eraserCursor = toolkit.createCustomCursor(eraserImg, new Point(this.getX(), this.getY()), "eraserCursor");
 	Cursor bucketCursor = toolkit.createCustomCursor(bucketCursorImg, new Point(this.getX(), this.getY()), "bucketCursor");
 	Cursor rollerCursor = toolkit.createCustomCursor(rollerCursorImg, new Point(this.getX(), this.getY()), "rollerCursor");
 	Cursor penCursor = toolkit.createCustomCursor(penCursorImg, new Point(this.getX(), this.getY()), "penCursor");
 	Cursor fountainCursor = toolkit.createCustomCursor(fountainImg, new Point(this.getX(), this.getY()), "fountainCursor");
+	Cursor dropperCursor = toolkit.createCustomCursor(dropperImg, new Point(this.getX(), this.getY()), "dropperCursor");
 	
 	boolean triedToResizePenTool = false;
 	
@@ -199,6 +205,7 @@ class Application extends JPanel {
 		add(fountainPenButton);
 		add(openButton);
 		add(ovalButton);
+		add(dropperButton);
 	}
 	
 	static double halfPI = Math.PI/2;
@@ -460,6 +467,14 @@ class Application extends JPanel {
 		}
 	};
 	
+	ActionListener dropperListener = new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			currentTool = dropper;
+		}
+	};
+	
 	private void initButtons() { // Intitialize all the toolbar buttons
 
 		saveButton = but(32,32,7,7,saveImg,saveButtonListener,"Save to a file");
@@ -474,7 +489,8 @@ class Application extends JPanel {
 		textToolButton = but(32,32,85+offset+202,7,textImg,textToolListener,"Text tool");
 		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
 		openButton = but(32,32,85+offset+272,7,openImg,openListener,"Open image");
-		ovalButton = but(32,32,85+offset+337,7,openImg,ovalButListener,"Oval tool");
+		ovalButton = but(32,32,85+offset+307,7,ovalImg,ovalButListener,"Oval tool");
+		dropperButton = but(32,32,85+offset+342,7,dropperImg,dropperListener,"Dropper tool");
 		
 	}
 	
@@ -565,6 +581,10 @@ class Application extends JPanel {
 			this.setCursor(fountainCursor);
 		}else if(currentTool instanceof OpenTool) {
 			this.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+		}else if(currentTool instanceof LineTool) {
+			this.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+		}else if(currentTool instanceof DropperTool) {
+			this.setCursor(dropperCursor);
 		}
 	}
 	
@@ -640,11 +660,7 @@ class Application extends JPanel {
 						
 						bufferGraphics.setColor(new Color(curR, curG, curB));
 						bufferGraphics.drawLine(oldX, oldY-75, newX, newY-75);
-						System.out.println(oldX);
-						System.out.println(oldY-75);
-						System.out.println(newX);
-						System.out.println(newY-50);
-						System.out.println();
+
 						//bufferGraphics.fillOval(b.x, b.y-75, desiredBrushWidth, desiredBrushWidth);
 						newX = oldX;
 						newY = oldY;
@@ -688,12 +704,12 @@ class Application extends JPanel {
 					}else if(currentTool instanceof LineTool) {
 						
 						getGraphics().setColor(new Color(curR, curG, curB));
-						getGraphics().drawLine(initialX, initialY, b.x, b.y-50);
+						getGraphics().drawLine(initialX-10, initialY-30, b.x-5, b.y-55);
 						
-						lineX = initialX;
-						lineY = initialY-50;
-						lineX2 = b.x;
-						lineY2 = b.y-100;
+						lineX = initialX-10;
+						lineY = initialY-80;
+						lineX2 = b.x-5;
+						lineY2 = b.y-105;
 						
 						repaintIt();
 					}else if(currentTool instanceof FountainPen) {
@@ -727,11 +743,11 @@ class Application extends JPanel {
 					
 				}else if(currentTool instanceof OpenTool) {
 					if(openedImage == null) return;
-					fillImageRect(bufferGraphics, openToolImg, openedImage.x+50, openedImage.y-50, openedImage.width, openedImage.height);
+					fillImageRect(bufferGraphics, openToolImg, openedImage.x, openedImage.y-50, openedImage.width, openedImage.height-50);
 					repaintIt();
 				}else if(currentTool instanceof OvalTool) {
 					bufferGraphics.setColor(new Color(curR, curG, curB));
-					fillOval(bufferGraphics, (int)ovalRect.getX(), (int)ovalRect.getY(), (int)ovalRect.getWidth(), (int)ovalRect.getHeight());
+					bufferGraphics.fillOval((int)ovalRect.getX(), (int)ovalRect.getY()-50, (int)ovalRect.getWidth(), (int)ovalRect.getHeight());
 				}
 				
 			}
@@ -768,7 +784,24 @@ class Application extends JPanel {
 					bufferGraphics.setColor(new Color(curR, curG, curB));
 					bufferGraphics.drawString(txt, b.x, b.y-75);
 					repaintIt();
+				}else if(currentTool instanceof DropperTool) {
+					Robot r = null;
+					try {
+						r = new Robot();
+					} catch (AWTException e) {
+						e.printStackTrace();
+					}
+					Color c = r.getPixelColor(b.x, b.y);
+					curR = c.getRed();
+					curG = c.getGreen();
+					curB = c.getBlue();
 					
+					// So we can see dat
+					redSlider.setValue(curR);
+					greenSlider.setValue(curG);
+					blueSlider.setValue(curB);
+					
+					repaintIt();
 				}
 			}
 
@@ -851,6 +884,7 @@ class MultiTool extends Tool {private static final long serialVersionUID = 1L;}
 class TextTool extends Tool {private static final long serialVersionUID = 1L;}
 class OpenTool extends Tool {private static final long serialVersionUID = 1L;}
 class OvalTool extends Tool {private static final long serialVersionUID = 1L;}
+class DropperTool extends Tool {private static final long serialVersionUID = 1L;}
 
 class DrawingInformation implements Serializable {
 
