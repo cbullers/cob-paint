@@ -17,14 +17,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,7 +43,8 @@ public class COBPaint extends JFrame {
 
 	public COBPaint() {
 		super("COBPaint");
-		setSize(1015,700);
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		setSize((int)screenSize.getWidth(),(int)screenSize.getHeight()-35);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setVisible(true);
 		
@@ -138,6 +134,8 @@ class Application extends JPanel {
 
 	Image openToolImg;
 	
+	Dimension screenSize = toolkit.getScreenSize();
+	
 	Image penCursorImg = toolkit.getImage("pencil.png");
 	Image rollerCursorImg = toolkit.getImage("roller.png");
 	Image bucketCursorImg = toolkit.getImage("bucket.png");
@@ -160,73 +158,6 @@ class Application extends JPanel {
 	
 	boolean triedToResizePenTool = false;
 	
-	// Drawing with friends variables
-	boolean drawingWithFriend;
-	String friendIP;
-	ServerSocket serverSocket;
-	Socket socket; // Just for listening purposes
-	Socket friend; // This will be where data will be sent to and fro
-	int DEFAULT_PORT = 34125;
-	ObjectOutputStream out; // When we want to send to our friend
-	ObjectInputStream in; // When we receive from our friend
-	
-	private void defineServerSocket() {
-		try{
-			serverSocket = new ServerSocket(DEFAULT_PORT);
-		}catch(IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private void listenForIncomingConnections() {
-		new Thread(new Runnable() {
-			public void run() {
-				while(true) {
-					try {
-						socket = serverSocket.accept();
-						if(socket==null) continue;
-						if(askForString("INCOMING REQUEST TO PAINT FROM " + socket.getInetAddress().toString().substring(1) + " IF YOU WISH TO PAINT TYPE YES, IF NOT, TYPE NO") == "NO") continue;
-						friend = socket;
-						out = new ObjectOutputStream(friend.getOutputStream());
-						in = new ObjectInputStream(friend.getInputStream());
-						drawingWithFriend = true;
-						break;
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		}).start();
-	}
-	
-	int testNewX, testNewY;
-	private void listenForFriendDrawing() throws EOFException {
-		new Thread(new Runnable() {
-			public void run() {
-				
-				while(true) {
-					if(!drawingWithFriend || in == null || out == null) continue;
-					DrawingInformation d = null;
-					
-					try {
-						if(null != in.readObject()) {
-							d = (DrawingInformation)in.readObject();
-							if(d.currentTool instanceof PenTool) {
-								bufferGraphics.setColor(d.color);
-								bufferGraphics.drawLine(d.oldX, d.oldY-75, testNewX, testNewY-75);
-								testNewX=d.oldX;
-								testNewY=d.oldY;
-								repaintIt();
-							}
-						}
-					} catch (ClassNotFoundException | IOException e) {
-						e.printStackTrace();
-					}
-					
-				}
-			}
-		}).start();
-	}
 	
 	//debug
 	int offset = 35;
@@ -234,7 +165,8 @@ class Application extends JPanel {
 	boolean pressingDown = false;
 	
 	public Application(final JFrame a) {
-		setSize(1000,650);//setting size
+		setSize((int)screenSize.getWidth(),(int)screenSize.getHeight());//setting size
+		screenSize = this.getSize();
 		setLayout(null);//nullifiying layout
 		initSliders();//initializing sliders
 		initCanvas();
@@ -247,13 +179,6 @@ class Application extends JPanel {
 		canvasImage = new BufferedImage(999,999,BufferedImage.TYPE_INT_ARGB);
 		bufferGraphics = (Graphics)canvasImage.createGraphics();
 		
-		defineServerSocket();
-		listenForIncomingConnections();
-		try {
-			listenForFriendDrawing();
-		} catch (EOFException e) {
-			e.printStackTrace();
-		}
 	}
 	
 	private void addStuff() {
@@ -261,8 +186,6 @@ class Application extends JPanel {
 		add(redSlider);
 		add(greenSlider);//slider for green
 		add(blueSlider);//slider for blue
-		add(toolBrushSize);//adjusting size for brush
-		add(toolBrushSizeLbl);//the label for tool brush
 		add(penButton);
 		add(rectangleButton);
 		add(rollerButton);
@@ -275,7 +198,6 @@ class Application extends JPanel {
 		add(textToolButton);
 		add(fountainPenButton);
 		add(openButton);
-		add(friendDraw);
 		add(ovalButton);
 	}
 	
@@ -340,21 +262,21 @@ class Application extends JPanel {
 	public void drawMenu(Graphics g) {
 		
 		g.setColor(new Color(187,187,187));
-		g.fillRect(0, 0, 1000, 50);
+		g.fillRect(0, 0, (int)screenSize.getWidth(), 50);
 		
-		g.fillRect(800, 25, 25, 625);
+		g.fillRect((int)screenSize.getWidth()-275, 25, 50, (int)screenSize.getHeight());
 		
 		g.setColor(Color.BLACK);
-		g.drawString("RED", 850, 575);//levels for red
-		g.drawString("GREEN", 890, 575);// levels for green
-		g.drawString("BLUE", 950, 575);// levels for blue
+		g.drawString("RED", (int)screenSize.getWidth()-175, 600);//levels for red
+		g.drawString("GREEN", (int)screenSize.getWidth()-(175-40), 600);// levels for green
+		g.drawString("BLUE", (int)screenSize.getWidth()-(175-40-60), 600);// levels for blue
 		
 		g.setColor(new Color(curR, curG, curB));
-		g.fillRect(835,595,150,35);
+		g.fillRect((int)screenSize.getWidth()-185,(int)screenSize.getHeight()-375,150,35);
 		
 		String hexValue = String.format("#%02X%02X%02X", curR, curG, curB);
 		g.setColor(Color.black);
-		g.drawString("Hex Value: " + hexValue, 850, 617);
+		g.drawString("Hex Value: " + hexValue, (int)screenSize.getWidth()-165, (int)screenSize.getHeight()-355);
 		
 	}
 	
@@ -404,10 +326,6 @@ class Application extends JPanel {
 		}else{
 			return "No Selection";
 		}
-	}
-	
-	private void askForFriendsIP() {
-		friendIP = askForString("Your friend's IP or hostname");
 	}
 	
 	private void askForImage() {
@@ -535,21 +453,6 @@ class Application extends JPanel {
 		}
 	};
 	
-	ActionListener friendDrawListener = new ActionListener() {
-		
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			askForFriendsIP();
-			try {
-				friend = new Socket(friendIP, DEFAULT_PORT);
-				out = new ObjectOutputStream(friend.getOutputStream());
-				in = new ObjectInputStream(friend.getInputStream());
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		}
-	};
-	
 	ActionListener ovalButListener = new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent arg0) {
@@ -571,7 +474,6 @@ class Application extends JPanel {
 		textToolButton = but(32,32,85+offset+202,7,textImg,textToolListener,"Text tool");
 		fountainPenButton = but(32,32,85+offset+237,7,fountainImg,fountainListener,"Fountain pen");
 		openButton = but(32,32,85+offset+272,7,openImg,openListener,"Open image");
-		friendDraw = but(32,32,85+offset+304,7,openImg,friendDrawListener,"Draw with friends!");
 		ovalButton = but(32,32,85+offset+337,7,openImg,ovalButListener,"Oval tool");
 		
 	}
@@ -633,21 +535,17 @@ class Application extends JPanel {
 		
 	}
 	
-	private JLabel label(String title, int type, int x, int y, int w, int h) {
-		JLabel retLabel = new JLabel(title, type);
-		retLabel.setSize(w,h);
-		retLabel.setLocation(x,y);
-		return retLabel;
-	}
+//	private JLabel label(String title, int type, int x, int y, int w, int h) {
+//		JLabel retLabel = new JLabel(title, type);
+//		retLabel.setSize(w,h);
+//		retLabel.setLocation(x,y);
+//		return retLabel;
+//	}
 
 	public void initSliders() {
-		toolBrushSize = slider(JSlider.HORIZONTAL, 0, 200, 10, 695, 10, 300, 30, toolBrushSizeListener);
-		redSlider = slider(JSlider.VERTICAL, 0, 255, 255, 850, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, redSliderListener);
-		greenSlider = slider(JSlider.VERTICAL, 0, 255, 255, 900, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, greenSliderListener);
-		blueSlider = slider(JSlider.VERTICAL, 0, 255, 255, 950, 55, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, blueSliderListener);
-		
-		toolBrushSizeLbl = label("Brush Size: ", JLabel.CENTER, 615, 13, 75, 25);
-		
+		redSlider = slider(JSlider.VERTICAL, 0, 255, 255, (int)screenSize.getWidth()-175, 75, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, redSliderListener);
+		greenSlider = slider(JSlider.VERTICAL, 0, 255, 255, (int)screenSize.getWidth()-125, 75, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, greenSliderListener);
+		blueSlider = slider(JSlider.VERTICAL, 0, 255, 255, (int)screenSize.getWidth()-75, 75, SLIDER_DIMENSION.width, SLIDER_DIMENSION.height, blueSliderListener);	
 	}
 	
 	private void resetCursor() {//resetting cursor 
@@ -737,15 +635,6 @@ class Application extends JPanel {
 					
 					oldX = b.x;
 					oldY = b.y;
-					
-					if(drawingWithFriend) {
-						try {
-							out.writeObject(new DrawingInformation(currentTool, initialX, initialY, oldX, oldY, b.x, b.y, new Color(curR, curG, curB)));
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						
-					}
 
 					if(currentTool instanceof PenTool) {
 						
@@ -854,7 +743,7 @@ class Application extends JPanel {
 
 		canvas = new Canvas();
 		canvas.setLocation(0,50);
-		canvas.setSize(800,600);
+		canvas.setSize((int)screenSize.getWidth()-275, (int)screenSize.getHeight());
 		canvas.setBorder(new EmptyBorder(0, 0, 0, 0));
 		canvas.addMouseListener(new MouseListener() {
 
